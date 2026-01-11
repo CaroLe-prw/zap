@@ -26,10 +26,29 @@
           >
             {{ tab }}
           </span>
+          <NButton
+            v-if="showAddButton"
+            quaternary
+            size="small"
+            class="add-task-btn"
+            @click="showModal = true"
+          >
+            <template #icon>
+              <NIcon><Add /></NIcon>
+            </template>
+            Add Task
+          </NButton>
         </div>
       </header>
 
       <TodayFocus />
+
+      <AddTaskModal
+        v-model:show="showModal"
+        @close="showModal = false"
+        @add="handleAddTask"
+        @add-start="handleAddTaskStart"
+      />
 
       <div class="tasks-section">
         <div class="section-header">ALL TASKS</div>
@@ -85,13 +104,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { NButton, NIcon } from "naive-ui";
-import { BarChart, List } from "@vicons/ionicons5";
+import { BarChart, List, Add } from "@vicons/ionicons5";
 import TodayFocus from "./components/TodayFocus.vue";
 import TaskItem from "./components/TaskItem.vue";
+import AddTaskModal from "./components/AddTaskModal.vue";
 
 const currentView = ref<"tasks" | "stats">("tasks");
 const tabs = ["All Tasks", "In Progress", "Completed"];
 const currentTab = ref("All Tasks");
+const showModal = ref(false);
 
 interface Task {
   id: number;
@@ -154,14 +175,56 @@ const totalTime = computed(() =>
 );
 const weekTime = ref(28800);
 
+const showAddButton = computed(() => currentView.value === "tasks");
+
+const handleAddTask = (data: { form: any; addToFocus: boolean }) => {
+  const category = data.form.category || "Other";
+  const newTask: Task = {
+    id: Date.now(),
+    title: data.form.taskName,
+    category,
+    completed: false,
+    elapsed: 0,
+    sessionTime: 0,
+    isTracking: false,
+  };
+  tasks.value.unshift(newTask);
+};
+
+const handleAddTaskStart = (data: { form: any; addToFocus: boolean }) => {
+  // Pause all other tracking tasks
+  tasks.value.forEach((t) => {
+    if (t.isTracking) {
+      t.elapsed += t.sessionTime;
+      t.sessionTime = 0;
+      t.isTracking = false;
+    }
+  });
+
+  const category = data.form.category || "Other";
+  const newTask: Task = {
+    id: Date.now(),
+    title: data.form.taskName,
+    category,
+    completed: false,
+    elapsed: 0,
+    sessionTime: 0,
+    isTracking: true,
+  };
+  tasks.value.unshift(newTask);
+  currentTab.value = "In Progress";
+};
+
 const tagColor = (category: string) => {
   const colors: Record<string, { color: string; textColor: string }> = {
-    Work: { color: "#10b981", textColor: "#fff" },
-    Meeting: { color: "#8b5cf6", textColor: "#fff" },
-    Design: { color: "#f59e0b", textColor: "#fff" },
-    "Code Review": { color: "#ef4444", textColor: "#fff" },
+    Work: { color: "#3B82F6", textColor: "#fff" },
+    Study: { color: "#A855F7", textColor: "#fff" },
+    Life: { color: "#22C55E", textColor: "#fff" },
+    Health: { color: "#06B6D4", textColor: "#fff" },
+    Meeting: { color: "#F97316", textColor: "#fff" },
+    Other: { color: "#9CA3AF", textColor: "#fff" },
   };
-  return colors[category] || { color: "#6b7280", textColor: "#fff" };
+  return colors[category] || { color: "#9CA3AF", textColor: "#fff" };
 };
 
 const formatTime = (seconds: number) => {
@@ -255,9 +318,16 @@ onUnmounted(() => {
 
 .tabs {
   display: flex;
+  align-items: center;
   gap: 20px;
   border-bottom: 2px solid #e5e7eb;
   padding-bottom: 0;
+}
+
+.add-task-btn {
+  margin-left: auto;
+  font-weight: 600;
+  color: #111827;
 }
 
 .tab {
