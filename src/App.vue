@@ -1,57 +1,41 @@
 <template>
-  <div class="app-container">
-    <!-- 任务视图 -->
-    <div v-if="currentView === 'tasks'" class="view-panel">
-      <header class="panel-header">
-        <div class="header-top">
-          <h1 class="app-title">Zap</h1>
-          <NButton
-            quaternary
-            circle
-            size="small"
-            @click="currentView = 'stats'"
-          >
-            <template #icon>
-              <NIcon><BarChart /></NIcon>
-            </template>
-          </NButton>
-        </div>
-        <div class="tabs">
-          <span
+  <div class="app">
+    <!-- Task View -->
+    <template v-if="currentView === 'tasks'">
+      <header class="header">
+        <h1 class="logo">Zap</h1>
+        <nav class="nav">
+          <button
             v-for="tab in tabs"
             :key="tab"
-            class="tab"
+            class="nav-item"
             :class="{ active: currentTab === tab }"
             @click="currentTab = tab"
           >
             {{ tab }}
-          </span>
-          <NButton
-            v-if="showAddButton"
-            quaternary
-            size="small"
-            class="add-task-btn"
-            @click="showModal = true"
-          >
-            <template #icon>
-              <NIcon><Add /></NIcon>
-            </template>
+          </button>
+          <button class="icon-btn" title="Statistics" @click="currentView = 'stats'">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 20V10M12 20V4M6 20v-6"/>
+            </svg>
+          </button>
+          <button class="add-btn" @click="showModal = true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
             Add Task
-          </NButton>
-        </div>
+          </button>
+        </nav>
       </header>
 
       <TodayFocus />
 
-      <AddTaskModal
-        v-model:show="showModal"
-        @close="showModal = false"
-        @add="handleAddTask"
-        @add-start="handleAddTaskStart"
-      />
-
-      <div class="tasks-section">
-        <div class="section-header">ALL TASKS</div>
+      <main class="main">
+        <div class="section-header">
+          <span>All Tasks</span>
+          <span class="count">{{ tasks.length }}</span>
+        </div>
         <div class="task-list">
           <TaskItem
             v-for="task in filteredTasks"
@@ -62,54 +46,44 @@
             @toggle="toggleTimer"
           />
         </div>
-      </div>
+      </main>
 
-      <footer class="panel-footer">
-        <span>Total: {{ formatTime(totalTime) }}</span>
-        <span>This week: {{ formatTime(weekTime) }}</span>
+      <footer class="footer">
+        <div class="stat">
+          <span class="stat-label">Total</span>
+          <span class="stat-value">{{ formatTime(totalTime) }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">This week</span>
+          <span class="stat-value">{{ formatTime(weekTime) }}</span>
+        </div>
       </footer>
-    </div>
+    </template>
 
-    <!-- 统计视图 -->
-    <div v-else class="view-panel">
-      <header class="panel-header">
-        <div class="header-top">
-          <h1 class="app-title">Zap</h1>
-          <NButton
-            quaternary
-            circle
-            size="small"
-            @click="currentView = 'tasks'"
-          >
-            <template #icon>
-              <NIcon><List /></NIcon>
-            </template>
-          </NButton>
-        </div>
-        <div class="stats-period">
-          <span class="period-label">TODAY</span>
-          <div class="period-nav">
-            <span class="nav-btn">&lt;</span>
-            <span class="nav-btn">&gt;</span>
-          </div>
-        </div>
-      </header>
-      <div class="stats-content">
-        <div class="stats-placeholder">Statistics coming soon...</div>
-      </div>
-    </div>
+    <!-- Stats View -->
+    <template v-else>
+      <StatsView @back="currentView = 'tasks'" />
+    </template>
+
+    <AddTaskModal
+      v-model:show="showModal"
+      @close="showModal = false"
+      @add="handleAddTask"
+      @add-start="handleAddTaskStart"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { NButton, NIcon } from "naive-ui";
-import { BarChart, List, Add } from "@vicons/ionicons5";
 import TodayFocus from "./components/TodayFocus.vue";
 import TaskItem from "./components/TaskItem.vue";
+import StatsView from "./components/StatsView.vue";
 import AddTaskModal from "./components/AddTaskModal.vue";
 
-const currentView = ref<"tasks" | "stats">("tasks");
+type View = "tasks" | "stats";
+const currentView = ref<View>("tasks");
+
 const tabs = ["All Tasks", "In Progress", "Completed"];
 const currentTab = ref("All Tasks");
 const showModal = ref(false);
@@ -171,11 +145,44 @@ const filteredTasks = computed(() => {
 });
 
 const totalTime = computed(() =>
-  tasks.value.reduce((sum, t) => sum + t.elapsed, 0),
+  tasks.value.reduce((sum, t) => sum + t.elapsed + (t.isTracking ? t.sessionTime : 0), 0),
 );
 const weekTime = ref(28800);
 
-const showAddButton = computed(() => currentView.value === "tasks");
+const tagColor = (category: string) => {
+  const colors: Record<string, { color: string; textColor: string }> = {
+    Work: { color: "#dbeafe", textColor: "#1d4ed8" },
+    Design: { color: "#f3f4f6", textColor: "#374151" },
+    "Code Review": { color: "#f3f4f6", textColor: "#374151" },
+    Meeting: { color: "#fef3c7", textColor: "#b45309" },
+  };
+  return colors[category] || { color: "#f3f4f6", textColor: "#374151" };
+};
+
+const formatTime = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+};
+
+const toggleTimer = (task: Task) => {
+  if (task.isTracking) {
+    task.elapsed += task.sessionTime;
+    task.sessionTime = 0;
+    task.isTracking = false;
+  } else {
+    tasks.value.forEach((t) => {
+      if (t.isTracking) {
+        t.elapsed += t.sessionTime;
+        t.sessionTime = 0;
+        t.isTracking = false;
+      }
+    });
+    task.sessionTime = 0;
+    task.isTracking = true;
+  }
+};
 
 const handleAddTask = (data: { form: any; addToFocus: boolean }) => {
   const category = data.form.category || "Other";
@@ -192,7 +199,6 @@ const handleAddTask = (data: { form: any; addToFocus: boolean }) => {
 };
 
 const handleAddTaskStart = (data: { form: any; addToFocus: boolean }) => {
-  // Pause all other tracking tasks
   tasks.value.forEach((t) => {
     if (t.isTracking) {
       t.elapsed += t.sessionTime;
@@ -200,7 +206,6 @@ const handleAddTaskStart = (data: { form: any; addToFocus: boolean }) => {
       t.isTracking = false;
     }
   });
-
   const category = data.form.category || "Other";
   const newTask: Task = {
     id: Date.now(),
@@ -215,48 +220,8 @@ const handleAddTaskStart = (data: { form: any; addToFocus: boolean }) => {
   currentTab.value = "In Progress";
 };
 
-const tagColor = (category: string) => {
-  const colors: Record<string, { color: string; textColor: string }> = {
-    Work: { color: "#3B82F6", textColor: "#fff" },
-    Study: { color: "#A855F7", textColor: "#fff" },
-    Life: { color: "#22C55E", textColor: "#fff" },
-    Health: { color: "#06B6D4", textColor: "#fff" },
-    Meeting: { color: "#F97316", textColor: "#fff" },
-    Other: { color: "#9CA3AF", textColor: "#fff" },
-  };
-  return colors[category] || { color: "#9CA3AF", textColor: "#fff" };
-};
-
-const formatTime = (seconds: number) => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-};
-
-const toggleTimer = (task: Task) => {
-  if (task.isTracking) {
-    // 暂停时保存时间
-    task.elapsed += task.sessionTime;
-    task.sessionTime = 0;
-    task.isTracking = false;
-  } else {
-    // 开始时：先保存其他正在计时的任务，再重置当前任务
-    tasks.value.forEach((t) => {
-      if (t.isTracking) {
-        t.elapsed += t.sessionTime;
-        t.sessionTime = 0;
-        t.isTracking = false;
-      }
-    });
-    task.sessionTime = 0;
-    task.isTracking = true;
-  }
-};
-
-// 计时器
+// Timer
 let timer: ReturnType<typeof setInterval> | null = null;
-
 const startTimer = () => {
   timer = setInterval(() => {
     tasks.value.forEach((task) => {
@@ -266,150 +231,151 @@ const startTimer = () => {
     });
   }, 1000);
 };
-
 const stopTimer = () => {
   if (timer) {
     clearInterval(timer);
     timer = null;
   }
 };
-
-onMounted(() => {
-  startTimer();
-});
-
-onUnmounted(() => {
-  stopTimer();
-});
+onMounted(() => startTimer());
+onUnmounted(() => stopTimer());
 </script>
 
 <style scoped>
-.app-container {
-  width: 100%;
-  height: 100vh;
-  background: white;
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  min-height: 100vh;
 }
 
-.view-panel {
-  width: 100%;
-  height: 100%;
+.header {
   display: flex;
-  flex-direction: column;
-  padding: 32px;
-}
-
-.panel-header {
-  margin-bottom: 20px;
-}
-
-.header-top {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
-.app-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #111827;
-  margin: 0;
+.logo {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.5;
 }
 
-.tabs {
+.nav {
   display: flex;
   align-items: center;
-  gap: 20px;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 0;
+  gap: 16px;
 }
 
-.add-task-btn {
-  margin-left: auto;
-  font-weight: 600;
-  color: #111827;
+.nav-item {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 0.15s;
 }
 
-.tab {
+.nav-item:hover {
+  color: var(--text-secondary);
+}
+
+.nav-item.active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  margin-left: 8px;
+  transition: color 0.15s;
+}
+
+.icon-btn:hover {
+  color: var(--text-secondary);
+}
+
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--text-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: #9ca3af;
-  padding-bottom: 8px;
+  padding: 7px 14px;
   cursor: pointer;
-  position: relative;
-  bottom: -2px;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  transition: opacity 0.15s;
 }
 
-.tab.active {
-  color: #111827;
-  border-bottom-color: #111827;
+.add-btn:hover {
+  opacity: 0.9;
 }
 
 .section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
   font-weight: 600;
-  color: #9ca3af;
+  color: var(--text-muted);
+  text-transform: uppercase;
   letter-spacing: 1px;
-  margin: 20px 0 12px;
+  margin-bottom: 12px;
+}
+
+.count {
+  background: var(--border);
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .task-list {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-.panel-footer {
+.main {
+  margin-bottom: 24px;
+}
+
+.footer {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
-  color: #6b7280;
-  padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
-  margin-top: auto;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
-.stats-period {
+.stat {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-.period-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #111827;
-}
-
-.period-nav {
-  display: flex;
   gap: 8px;
 }
 
-.nav-btn {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f3f4f6;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.stats-content {
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 40px;
-}
-
-.stats-placeholder {
-  color: #9ca3af;
+.stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 </style>

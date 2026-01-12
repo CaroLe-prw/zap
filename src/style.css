@@ -1,9 +1,11 @@
 :root {
   --primary: #3b82f6;
-  --bg-card: #ffffff;
   --bg-page: #f8f9fb;
+  --bg-card: #ffffff;
   --text-primary: #111827;
   --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --border: #e5e7eb;
 }
 
 * {
@@ -17,6 +19,6 @@ body {
   color: var(--text-primary);
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
-    sans-serif;
+    "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }

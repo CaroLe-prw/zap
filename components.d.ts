@@ -11,16 +11,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
-    NButton: typeof import('naive-ui')['NButton']
-    NConfigProvider: typeof import('naive-ui')['NConfigProvider']
-    NDialogProvider: typeof import('naive-ui')['NDialogProvider']
-    NIcon: typeof import('naive-ui')['NIcon']
-    NMessageProvider: typeof import('naive-ui')['NMessageProvider']
-    NNotificationProvider: typeof import('naive-ui')['NNotificationProvider']
-    NSpace: typeof import('naive-ui')['NSpace']
+    AddTaskModal: typeof import('./src/components/AddTaskModal.vue')['default']
+    NInput: typeof import('naive-ui')['NInput']
+    StatsView: typeof import('./src/components/StatsView.vue')['default']
     TaskItem: typeof import('./src/components/TaskItem.vue')['default']
-    TaskList: typeof import('./src/components/TaskList.vue')['default']
     TodayFocus: typeof import('./src/components/TodayFocus.vue')['default']
   }
 }

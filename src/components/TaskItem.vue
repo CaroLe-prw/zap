@@ -22,22 +22,18 @@
         }}</span>
       </div>
     </div>
-    <NButton
-      :type="task.isTracking ? 'info' : 'success'"
-      size="small"
+    <button
+      class="timer-btn"
+      :class="{ tracking: task.isTracking }"
       @click="$emit('toggle', task)"
     >
-      <template #icon>
-        <NIcon><component :is="task.isTracking ? Pause : Play" /></NIcon>
-      </template>
       {{ task.isTracking ? "Pause" : "Start" }}
-    </NButton>
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { NCheckbox, NTag, NButton, NIcon } from "naive-ui";
-import { Play, Pause } from "@vicons/ionicons5";
+import { NCheckbox, NTag } from "naive-ui";
 
 interface Task {
   id: number;
@@ -64,20 +60,18 @@ defineEmits<{
 .task-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid #f3f4f6;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.task-item:last-child {
+  border-bottom: none;
 }
 
 .task-item.active {
-  background: linear-gradient(
-    90deg,
-    rgba(59, 130, 246, 0.12) 20%,
-    transparent 100%
-  );
-  margin: 4px 0;
-  padding: 10px 12px;
-  border-radius: 8px;
+  background: #f0f9ff;
 }
 
 .task-content {
@@ -93,13 +87,12 @@ defineEmits<{
 
 .task-title {
   font-size: 14px;
-  font-weight: 500;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .task-title.completed {
   text-decoration: line-through;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .task-tracking {
@@ -122,17 +115,33 @@ defineEmits<{
   font-size: 12px;
   color: #10b981;
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.timer-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.timer-btn:hover {
+  background: var(--bg-page);
+}
+
+.timer-btn.tracking {
+  background: var(--text-primary);
+  color: white;
+  border-color: var(--text-primary);
 }
 
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.5;
-    transform: scale(0.8);
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>
