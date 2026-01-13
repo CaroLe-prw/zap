@@ -19,7 +19,10 @@ pub fn run() {
             sqlite::set_db(app).map_err(|e| e.to_string())?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![commands::add_task])
+        .invoke_handler(tauri::generate_handler![
+            commands::add_task,
+            commands::list_categories
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,22 +1,30 @@
+use derive_builder::Builder;
+
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
 use crate::error::ZapError;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Builder)]
+#[builder(setter(into, strip_option))]
 pub struct CreateTaskRequest {
     /// 文本标题
-    pub title: String,
+    title: String,
     /// 分类id
-    pub category_id: Option<u32>,
+    #[builder(default)]
+    category_id: Option<u32>,
     /// 预估用时
-    pub estimate_seconds: Option<u32>,
+    #[builder(default)]
+    estimate_seconds: Option<u32>,
     /// 备注
-    pub notes: Option<String>,
+    #[builder(default)]
+    notes: Option<String>,
     /// 是否加入Today Focus
-    pub is_today_focus: bool,
+    #[builder(default = "false")]
+    is_today_focus: bool,
     /// 是否立即开始并且开始计时
-    pub start_on_create: Option<bool>,
+    #[builder(default)]
+    start_on_create: Option<bool>,
 }
 
 pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<(), ZapError> {
@@ -54,7 +62,6 @@ pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<
 
     let task_id = res.last_insert_rowid();
 
-    // 可选：开始计时
     if req.start_on_create == Some(true) {
         sqlx::query("INSERT INTO time_entries (task_id, started_at, note) VALUES (?, ?, ?)")
             .bind(task_id)
