@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS tasks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,          -- 任务ID，自增主键
   title TEXT NOT NULL,                           -- 任务标题（必填）
-  done INTEGER NOT NULL DEFAULT 0,               -- 是否完成：0=未完成，1=已完成
+  done INTEGER NOT NULL DEFAULT 0,               -- 是否完成：0=未完成，1-暂停中  2=已完成
 
   category_id INTEGER,                           -- 分类ID（可选），关联 categories.id
   estimate_seconds INTEGER,                      -- 预估用时（秒，可选），用于“计划 vs 实际”与提示
@@ -70,4 +70,3 @@ CREATE INDEX IF NOT EXISTS idx_time_entries_ended_at ON time_entries(ended_at);
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_open_entry_per_task
 ON time_entries(task_id)
 WHERE ended_at IS NULL;
-
