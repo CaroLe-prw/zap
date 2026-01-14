@@ -3,14 +3,17 @@ use sqlx::SqlitePool;
 use zap_lib::commands;
 
 #[tokio::test]
-async fn test_list_categories() {
+async fn test_add_task_basic() {
     let pool: SqlitePool = common::setup_test_db()
         .await
         .expect("Failed to setup test database");
 
-    let categories_table = commands::list_categories_impl(&pool)
-        .await
-        .expect("查询数据失败");
+    let req = commands::CreateTaskRequestBuilder::default()
+        .title("测试任务")
+        .build()
+        .unwrap();
 
-    println!("{:?}", categories_table);
+    commands::add_task_impl(&pool, req)
+        .await
+        .expect("Failed to add task");
 }

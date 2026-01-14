@@ -70,3 +70,12 @@ CREATE INDEX IF NOT EXISTS idx_time_entries_ended_at ON time_entries(ended_at);
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_open_entry_per_task
 ON time_entries(task_id)
 WHERE ended_at IS NULL;
+
+
+INSERT OR IGNORE INTO categories (name, color) VALUES
+  ('Work', '#3B82F6'),
+  ('Study', '#A855F7'),
+  ('Life', '#22C55E'),
+  ('Health', '#06B6D4'),
+  ('Meeting', '#F97316'),
+  ('Other', '#9CA3AF');
