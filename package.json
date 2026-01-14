@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.9.1",
     "@vicons/ionicons5": "^0.13.0",
     "naive-ui": "^2.43.2",
     "vfonts": "^0.0.3",

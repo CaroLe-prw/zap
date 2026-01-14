@@ -14,15 +14,33 @@
           >
             {{ tab }}
           </button>
-          <button class="icon-btn" title="Statistics" @click="currentView = 'stats'">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 20V10M12 20V4M6 20v-6"/>
+          <button
+            class="icon-btn"
+            title="Statistics"
+            @click="currentView = 'stats'"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M18 20V10M12 20V4M6 20v-6" />
             </svg>
           </button>
           <button class="add-btn" @click="showModal = true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             Add Task
           </button>
@@ -75,11 +93,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed } from "vue";
 import TodayFocus from "./components/TodayFocus.vue";
 import TaskItem from "./components/TaskItem.vue";
 import StatsView from "./components/StatsView.vue";
 import AddTaskModal from "./components/AddTaskModal.vue";
+import { useTasks, type Task } from "./composables/useTasks";
+
+const { tasks, addTask, addTaskAndStart, toggleTimer } = useTasks();
 
 type View = "tasks" | "stats";
 const currentView = ref<View>("tasks");
@@ -87,55 +108,6 @@ const currentView = ref<View>("tasks");
 const tabs = ["All Tasks", "In Progress", "Completed"];
 const currentTab = ref("All Tasks");
 const showModal = ref(false);
-
-interface Task {
-  id: number;
-  title: string;
-  category: string;
-  completed: boolean;
-  elapsed: number;
-  sessionTime: number;
-  isTracking: boolean;
-}
-
-const tasks = ref<Task[]>([
-  {
-    id: 1,
-    title: "Review PR #234",
-    category: "Code Review",
-    completed: false,
-    elapsed: 5025,
-    sessionTime: 5025,
-    isTracking: true,
-  },
-  {
-    id: 2,
-    title: "Design system update",
-    category: "Design",
-    completed: false,
-    elapsed: 0,
-    sessionTime: 0,
-    isTracking: false,
-  },
-  {
-    id: 3,
-    title: "Team sync meeting",
-    category: "Meeting",
-    completed: false,
-    elapsed: 0,
-    sessionTime: 0,
-    isTracking: false,
-  },
-  {
-    id: 4,
-    title: "Fix authentication bug",
-    category: "Work",
-    completed: true,
-    elapsed: 3600,
-    sessionTime: 0,
-    isTracking: false,
-  },
-]);
 
 const filteredTasks = computed(() => {
   if (currentTab.value === "All Tasks") return tasks.value;
@@ -145,7 +117,10 @@ const filteredTasks = computed(() => {
 });
 
 const totalTime = computed(() =>
-  tasks.value.reduce((sum, t) => sum + t.elapsed + (t.isTracking ? t.sessionTime : 0), 0),
+  tasks.value.reduce(
+    (sum, t) => sum + t.elapsed + (t.isTracking ? t.sessionTime : 0),
+    0,
+  ),
 );
 const weekTime = ref(28800);
 
@@ -166,79 +141,24 @@ const formatTime = (seconds: number) => {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 };
 
-const toggleTimer = (task: Task) => {
-  if (task.isTracking) {
-    task.elapsed += task.sessionTime;
-    task.sessionTime = 0;
-    task.isTracking = false;
-  } else {
-    tasks.value.forEach((t) => {
-      if (t.isTracking) {
-        t.elapsed += t.sessionTime;
-        t.sessionTime = 0;
-        t.isTracking = false;
-      }
-    });
-    task.sessionTime = 0;
-    task.isTracking = true;
-  }
+const handleAddTask = async (data: {
+  form: any;
+  categoryId: number | null;
+  addToFocus: boolean;
+  estimateSeconds: number | null;
+}) => {
+  await addTask(data);
 };
 
-const handleAddTask = (data: { form: any; addToFocus: boolean }) => {
-  const category = data.form.category || "Other";
-  const newTask: Task = {
-    id: Date.now(),
-    title: data.form.taskName,
-    category,
-    completed: false,
-    elapsed: 0,
-    sessionTime: 0,
-    isTracking: false,
-  };
-  tasks.value.unshift(newTask);
-};
-
-const handleAddTaskStart = (data: { form: any; addToFocus: boolean }) => {
-  tasks.value.forEach((t) => {
-    if (t.isTracking) {
-      t.elapsed += t.sessionTime;
-      t.sessionTime = 0;
-      t.isTracking = false;
-    }
-  });
-  const category = data.form.category || "Other";
-  const newTask: Task = {
-    id: Date.now(),
-    title: data.form.taskName,
-    category,
-    completed: false,
-    elapsed: 0,
-    sessionTime: 0,
-    isTracking: true,
-  };
-  tasks.value.unshift(newTask);
+const handleAddTaskStart = async (data: {
+  form: any;
+  categoryId: number | null;
+  addToFocus: boolean;
+  estimateSeconds: number | null;
+}) => {
+  await addTaskAndStart(data);
   currentTab.value = "In Progress";
 };
-
-// Timer
-let timer: ReturnType<typeof setInterval> | null = null;
-const startTimer = () => {
-  timer = setInterval(() => {
-    tasks.value.forEach((task) => {
-      if (task.isTracking) {
-        task.sessionTime++;
-      }
-    });
-  }, 1000);
-};
-const stopTimer = () => {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
-};
-onMounted(() => startTimer());
-onUnmounted(() => stopTimer());
 </script>
 
 <style scoped>

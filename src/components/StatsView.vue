@@ -3,14 +3,30 @@
     <!-- Header -->
     <header class="stats-header">
       <button class="back-btn" @click="$emit('back')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
       </button>
       <h1 class="stats-title">Statistics</h1>
       <button class="export-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
+          />
         </svg>
         Export
       </button>
@@ -89,7 +105,10 @@
               :key="cat.name"
               class="legend-item"
             >
-              <span class="legend-dot" :style="{ background: cat.color }"></span>
+              <span
+                class="legend-dot"
+                :style="{ background: cat.color }"
+              ></span>
               <span class="legend-name">{{ cat.name }}</span>
               <span class="legend-time">{{ cat.time }}</span>
               <span class="legend-percent">{{ cat.percentage }}%</span>
@@ -102,15 +121,18 @@
       <div class="report-section">
         <div class="section-title">Detailed Report</div>
         <div class="report-list">
-          <div
-            v-for="item in todayReport"
-            :key="item.task"
-            class="report-item"
-          >
+          <div v-for="item in todayReport" :key="item.task" class="report-item">
             <div class="report-main">
-              <span class="report-dot" :style="{ background: item.color }"></span>
+              <span
+                class="report-dot"
+                :style="{ background: item.color }"
+              ></span>
               <span class="report-task">{{ item.task }}</span>
-              <NTag size="small" :bordered="false" :color="getTagColor(item.category)">
+              <NTag
+                size="small"
+                :bordered="false"
+                :color="getTagColor(item.category)"
+              >
                 {{ item.category }}
               </NTag>
             </div>
@@ -146,11 +168,7 @@
       <div class="chart-section">
         <div class="section-title">Daily Breakdown</div>
         <div class="bar-chart">
-          <div
-            v-for="day in weekData"
-            :key="day.name"
-            class="bar-item"
-          >
+          <div v-for="day in weekData" :key="day.name" class="bar-item">
             <div class="bar-track">
               <div
                 class="bar-fill"
@@ -173,7 +191,10 @@
             class="category-item"
           >
             <div class="category-left">
-              <span class="category-dot" :style="{ background: cat.color }"></span>
+              <span
+                class="category-dot"
+                :style="{ background: cat.color }"
+              ></span>
               <span class="category-name">{{ cat.name }}</span>
             </div>
             <div class="category-right">
@@ -217,7 +238,12 @@
             v-for="day in monthData"
             :key="day.date"
             class="month-day"
-            :class="{ active: day.active, low: day.level === 1, medium: day.level === 2, high: day.level === 3 }"
+            :class="{
+              active: day.active,
+              low: day.level === 1,
+              medium: day.level === 2,
+              high: day.level === 3,
+            }"
             :title="day.date + ': ' + day.time"
           >
             <span class="day-tooltip">{{ day.time }}</span>
@@ -243,7 +269,10 @@
             class="category-item"
           >
             <div class="category-left">
-              <span class="category-dot" :style="{ background: cat.color }"></span>
+              <span
+                class="category-dot"
+                :style="{ background: cat.color }"
+              ></span>
               <span class="category-name">{{ cat.name }}</span>
             </div>
             <div class="category-right">
@@ -272,7 +301,11 @@
             <div class="report-main">
               <span class="rank">{{ index + 1 }}</span>
               <span class="report-task">{{ item.task }}</span>
-              <NTag size="small" :bordered="false" :color="getTagColor(item.category)">
+              <NTag
+                size="small"
+                :bordered="false"
+                :color="getTagColor(item.category)"
+              >
                 {{ item.category }}
               </NTag>
             </div>
@@ -302,16 +335,25 @@ const currentPeriod = ref<(typeof periods)[number]["value"]>("today");
 
 const today = new Date();
 // Today: 当前日期零点
-const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+const todayStart = new Date(
+  today.getFullYear(),
+  today.getMonth(),
+  today.getDate(),
+).getTime();
 // Week: 当前日期 + 7天范围
-const weekEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6).getTime();
+const weekEnd = new Date(
+  today.getFullYear(),
+  today.getMonth(),
+  today.getDate() + 6,
+).getTime();
 // Month: 当前年当前月
 const monthValue = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
 
 // 根据 period 设置正确的默认值
 const getDefaultValue = () => {
   if (currentPeriod.value === "today") return todayStart;
-  if (currentPeriod.value === "week") return [todayStart, weekEnd] as [number, number];
+  if (currentPeriod.value === "week")
+    return [todayStart, weekEnd] as [number, number];
   return monthValue;
 };
 
@@ -336,11 +378,18 @@ watch(currentPeriod, () => {
 
 // Week 模式：自动调整为 7 天范围
 const handleDateChange = (value: number | [number, number] | null) => {
-  if (currentPeriod.value === "week" && Array.isArray(value) && value.length >= 2) {
+  if (
+    currentPeriod.value === "week" &&
+    Array.isArray(value) &&
+    value.length >= 2
+  ) {
     const [start, end] = value;
     const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
     if (diffDays > 7) {
-      dateValue.value = [start, start + 6 * 24 * 60 * 60 * 1000] as [number, number];
+      dateValue.value = [start, start + 6 * 24 * 60 * 60 * 1000] as [
+        number,
+        number,
+      ];
     } else {
       dateValue.value = value;
     }
@@ -359,11 +408,41 @@ const todayCategories = [
 ];
 
 const todayReport = [
-  { task: "Prepare presentation", category: "Work", time: "1h 25m", last: "9:55 am", color: "#3b82f6" },
-  { task: "Write report", category: "Meeting", time: "30m", last: "10:35 am", color: "#f97316" },
-  { task: "Lunch with friend", category: "Life", time: "30m", last: "12:15 pm", color: "#22c55e" },
-  { task: "Gym workout", category: "Health", time: "15m", last: "13:35 pm", color: "#06b6d4" },
-  { task: "Read book", category: "Study", time: "5m", last: "15:40 pm", color: "#a855f7" },
+  {
+    task: "Prepare presentation",
+    category: "Work",
+    time: "1h 25m",
+    last: "9:55 am",
+    color: "#3b82f6",
+  },
+  {
+    task: "Write report",
+    category: "Meeting",
+    time: "30m",
+    last: "10:35 am",
+    color: "#f97316",
+  },
+  {
+    task: "Lunch with friend",
+    category: "Life",
+    time: "30m",
+    last: "12:15 pm",
+    color: "#22c55e",
+  },
+  {
+    task: "Gym workout",
+    category: "Health",
+    time: "15m",
+    last: "13:35 pm",
+    color: "#06b6d4",
+  },
+  {
+    task: "Read book",
+    category: "Study",
+    time: "5m",
+    last: "15:40 pm",
+    color: "#a855f7",
+  },
 ];
 
 // Week data
@@ -395,7 +474,10 @@ interface MonthDay {
 
 const monthData: MonthDay[] = Array.from({ length: 31 }, (_, i) => ({
   date: `01-${(i + 1).toString().padStart(2, "0")}`,
-  time: i % 3 === 0 ? "0m" : `${Math.floor(Math.random() * 6) + 1}h ${Math.floor(Math.random() * 60)}m`,
+  time:
+    i % 3 === 0
+      ? "0m"
+      : `${Math.floor(Math.random() * 6) + 1}h ${Math.floor(Math.random() * 60)}m`,
   active: i % 3 !== 0,
   level: i % 4 === 0 ? 0 : i % 4 === 1 ? 1 : i % 4 === 2 ? 2 : 3,
 }));

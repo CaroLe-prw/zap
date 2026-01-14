@@ -14,11 +14,10 @@ pub struct CategoryResponse {
 }
 
 pub async fn list_categories_impl(pool: &SqlitePool) -> Result<Vec<CategoryResponse>, ZapError> {
-    let categories_table = sqlx::query_as::<_, CategoryResponse>(
-        r#"SELECT id, name, color FROM categories ORDER BY name"#,
-    )
-    .fetch_all(pool)
-    .await?;
+    let categories_table =
+        sqlx::query_as::<_, CategoryResponse>("SELECT id, name, color FROM categories")
+            .fetch_all(pool)
+            .await?;
 
     Ok(categories_table)
 }

@@ -13,9 +13,9 @@ pub struct CreateTaskRequest {
     /// 分类id
     #[builder(default)]
     category_id: Option<u32>,
-    /// 预估用时
+    /// 预估用时（秒）
     #[builder(default)]
-    estimate_seconds: Option<u32>,
+    estimate_seconds: Option<i64>,
     /// 备注
     #[builder(default)]
     notes: Option<String>,

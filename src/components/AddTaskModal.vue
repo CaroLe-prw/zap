@@ -113,8 +113,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, h } from "vue";
-import { NModal, NSelect, NSwitch, NButton } from "naive-ui";
+import { ref, computed, watch, onMounted, h } from "vue";
+import { NModal, NSelect, NSwitch, NButton, NInput } from "naive-ui";
+import { invoke } from "@tauri-apps/api/core";
+
+interface Category {
+  id: number;
+  name: string;
+  color: string;
+}
 
 interface AddTaskForm {
   taskName: string;
@@ -132,8 +139,24 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:show", value: boolean): void;
   (e: "close"): void;
-  (e: "add", data: { form: AddTaskForm; addToFocus: boolean }): void;
-  (e: "add-start", data: { form: AddTaskForm; addToFocus: boolean }): void;
+  (
+    e: "add",
+    data: {
+      form: AddTaskForm;
+      categoryId: number | null;
+      addToFocus: boolean;
+      estimateSeconds: number | null;
+    },
+  ): void;
+  (
+    e: "add-start",
+    data: {
+      form: AddTaskForm;
+      categoryId: number | null;
+      addToFocus: boolean;
+      estimateSeconds: number | null;
+    },
+  ): void;
 }>();
 
 const visible = computed({
@@ -150,47 +173,40 @@ const form = ref<AddTaskForm>({
   addToTodayFocus: false,
 });
 
-const selectedCategory = ref<string | null>(null);
+const selectedCategory = ref<number | null>(null);
 const selectedEstimate = ref<string>("");
 const customHours = ref(0);
 const customMinutes = ref(0);
 const isCustom = computed(() => selectedEstimate.value === "Custom");
 
-const categoryOptions = [
-  {
-    label: "Work",
-    value: "Work",
-    color: { color: "#3B82F6", textColor: "#fff" },
-  },
-  {
-    label: "Study",
-    value: "Study",
-    color: { color: "#A855F7", textColor: "#fff" },
-  },
-  {
-    label: "Life",
-    value: "Life",
-    color: { color: "#22C55E", textColor: "#fff" },
-  },
-  {
-    label: "Health",
-    value: "Health",
-    color: { color: "#06B6D4", textColor: "#fff" },
-  },
-  {
-    label: "Meeting",
-    value: "Meeting",
-    color: { color: "#F97316", textColor: "#fff" },
-  },
-  {
-    label: "Other",
-    value: "Other",
-    color: { color: "#9CA3AF", textColor: "#fff" },
-  },
-];
+const categoryOptions = ref<
+  Array<{
+    label: string;
+    value: number;
+    color: { color: string; textColor: string };
+  }>
+>([]);
+
+const loadCategories = async () => {
+  try {
+    const categories: Category[] = await invoke("list_categories");
+    categoryOptions.value = categories.map((cat) => ({
+      label: cat.name,
+      value: cat.id,
+      color: { color: cat.color, textColor: "#fff" },
+    }));
+  } catch (error) {
+    console.error("Failed to load categories:", error);
+  }
+};
+
+onMounted(() => {
+  loadCategories();
+});
 
 const renderCategoryOption = (option: {
   label: string;
+  value: number;
   color: { color: string };
 }) => {
   return h(
@@ -262,15 +278,28 @@ const handleCancel = () => {
   visible.value = false;
 };
 
+const estimateToSeconds = (estimate: string): number | null => {
+  if (!estimate) return null;
+  const match = estimate.match(/(\d+)h(?:(\d+)m)?|(\d+)m/);
+  if (!match) return null;
+  const h = parseInt(match[1] || "0", 10);
+  const m = parseInt(match[2] || match[3] || "0", 10);
+  return h * 3600 + m * 60;
+};
+
 const handleSubmit = () => {
   if (!form.value.taskName.trim()) return;
-  form.value.category = selectedCategory.value || "Other";
+  // Find category name from selected ID
+  const selectedCat = categoryOptions.value.find(
+    (c) => c.value === selectedCategory.value,
+  );
+  form.value.category = selectedCat?.label || "Other";
   // Handle estimate
   if (isCustom.value) {
     const h = customHours.value || 0;
     const m = customMinutes.value || 0;
     if (h > 0 && m > 0) {
-      form.value.estimate = `${h}h ${m}m`;
+      form.value.estimate = `${h}h${m}m`;
     } else if (h > 0) {
       form.value.estimate = `${h}h`;
     } else {
@@ -279,15 +308,20 @@ const handleSubmit = () => {
   } else {
     form.value.estimate = selectedEstimate.value;
   }
+  const estimateSeconds = estimateToSeconds(form.value.estimate || "");
   if (form.value.startImmediately) {
     emit("add-start", {
       form: { ...form.value },
+      categoryId: selectedCategory.value,
       addToFocus: form.value.addToTodayFocus,
+      estimateSeconds,
     });
   } else {
     emit("add", {
       form: { ...form.value },
+      categoryId: selectedCategory.value,
       addToFocus: form.value.addToTodayFocus,
+      estimateSeconds,
     });
   }
   visible.value = false;
