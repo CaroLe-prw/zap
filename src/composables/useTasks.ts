@@ -23,44 +23,7 @@ interface AddTaskData {
 }
 
 export function useTasks() {
-  const tasks = ref<Task[]>([
-    {
-      id: 1,
-      title: "Review PR #234",
-      category: "Code Review",
-      completed: false,
-      elapsed: 5025,
-      sessionTime: 5025,
-      isTracking: true,
-    },
-    {
-      id: 2,
-      title: "Design system update",
-      category: "Design",
-      completed: false,
-      elapsed: 0,
-      sessionTime: 0,
-      isTracking: false,
-    },
-    {
-      id: 3,
-      title: "Team sync meeting",
-      category: "Meeting",
-      completed: false,
-      elapsed: 0,
-      sessionTime: 0,
-      isTracking: false,
-    },
-    {
-      id: 4,
-      title: "Fix authentication bug",
-      category: "Work",
-      completed: true,
-      elapsed: 3600,
-      sessionTime: 0,
-      isTracking: false,
-    },
-  ]);
+  const tasks = ref<Task[]>([]);
 
   const stopOtherTimers = () => {
     tasks.value.forEach((t) => {

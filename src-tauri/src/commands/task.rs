@@ -1,9 +1,22 @@
 use derive_builder::Builder;
 
 use serde::{Deserialize, Serialize};
-use sqlx::{QueryBuilder, Sqlite, SqlitePool, prelude::FromRow};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+use sqlx::{
+    QueryBuilder, Sqlite, SqlitePool,
+    prelude::{FromRow, Type},
+};
 
 use crate::{commands::types::PaginatedResponse, error::ZapError};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize_repr, Deserialize_repr, Type, Default)]
+#[repr(u8)]
+pub enum TaskStatus {
+    #[default]
+    Todo = 0,
+    Running = 1,
+    Finished = 2,
+}
 
 #[derive(Debug, Serialize, Deserialize, Builder)]
 #[builder(setter(into, strip_option))]
@@ -41,7 +54,7 @@ pub struct TaskQuery {
     task_name: Option<String>,
     /// 按任务状态分类
     #[builder(default)]
-    done: Option<bool>,
+    done: Option<TaskStatus>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -51,7 +64,7 @@ pub struct TaskResponse {
     /// 任务标题
     title: String,
     /// 任务状态
-    done: bool,
+    done: TaskStatus,
     /// 分类id
     category_id: Option<u32>,
     /// 分类名称

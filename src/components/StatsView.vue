@@ -334,22 +334,21 @@ const periods = [
 const currentPeriod = ref<(typeof periods)[number]["value"]>("today");
 
 const today = new Date();
-// Today: 当前日期零点
+
 const todayStart = new Date(
   today.getFullYear(),
   today.getMonth(),
   today.getDate(),
 ).getTime();
-// Week: 当前日期 + 7天范围
+
 const weekEnd = new Date(
   today.getFullYear(),
   today.getMonth(),
   today.getDate() + 6,
 ).getTime();
-// Month: 当前年当前月
+
 const monthValue = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
 
-// 根据 period 设置正确的默认值
 const getDefaultValue = () => {
   if (currentPeriod.value === "today") return todayStart;
   if (currentPeriod.value === "week")
@@ -371,12 +370,10 @@ const datePickerWidth = computed(() => {
   return "140px";
 });
 
-// 切换 period 时更新日期值
 watch(currentPeriod, () => {
   dateValue.value = getDefaultValue();
 });
 
-// Week 模式：自动调整为 7 天范围
 const handleDateChange = (value: number | [number, number] | null) => {
   if (
     currentPeriod.value === "week" &&
@@ -398,7 +395,6 @@ const handleDateChange = (value: number | [number, number] | null) => {
   }
 };
 
-// Today data
 const todayCategories = [
   { name: "Work", time: "1h 25m", percentage: 51.1, color: "#3b82f6" },
   { name: "Study", time: "30m", percentage: 18.2, color: "#a855f7" },

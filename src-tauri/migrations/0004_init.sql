@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS tasks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,          -- 任务ID，自增主键
   title TEXT NOT NULL,                           -- 任务标题（必填）
-  done INTEGER NOT NULL DEFAULT 0,               -- 是否完成：0=未完成，1-已完成
+  done INTEGER NOT NULL DEFAULT 0,               -- 是否完成：0=未完成，1-进行中 2-已完成
 
   category_id INTEGER,                           -- 分类ID（可选），关联 categories.id
   estimate_seconds INTEGER,                      -- 预估用时（秒，可选），用于“计划 vs 实际”与提示
@@ -70,6 +70,21 @@ CREATE INDEX IF NOT EXISTS idx_time_entries_ended_at ON time_entries(ended_at);
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_open_entry_per_task
 ON time_entries(task_id)
 WHERE ended_at IS NULL;
+
+
+CREATE TABLE IF NOT EXISTS daily_focus (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,               -- 条目ID
+  focus_date TEXT NOT NULL,                           -- 属于哪一天：YYYY-MM-DD（本地日历日）
+  content TEXT NOT NULL,                              -- 内容（计划/清单文本）
+  is_done INTEGER NOT NULL DEFAULT 0,                 -- 是否勾掉：0/1
+  position INTEGER NOT NULL DEFAULT 0,                -- 排序（拖拽用，越小越靠上）
+  created_at TEXT NOT NULL DEFAULT (datetime('now')), -- 创建时间（UTC）
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))  -- 更新时间（UTC）
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_focus_date ON daily_focus(focus_date);
+CREATE INDEX IF NOT EXISTS idx_daily_focus_date_done ON daily_focus(focus_date, is_done);
+
 
 
 INSERT OR IGNORE INTO categories (name, color) VALUES

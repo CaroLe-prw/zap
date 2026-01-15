@@ -5752,6 +5752,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "serde_repr",
  "sqlx",
  "tauri",
  "tauri-build",

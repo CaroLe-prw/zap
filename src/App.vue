@@ -51,8 +51,31 @@
 
       <main class="main">
         <div class="section-header">
-          <span>All Tasks</span>
-          <span class="count">{{ tasks.length }}</span>
+          <div class="section-title">
+            <span>{{ currentTab }}</span>
+            <span class="count">{{ filteredTasks.length }}</span>
+          </div>
+          <div class="search-box">
+            <svg
+              class="search-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search..."
+              class="search-input"
+              @input="handleSearch"
+            />
+          </div>
         </div>
         <div class="task-list">
           <TaskItem
@@ -93,7 +116,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import TodayFocus from "./components/TodayFocus.vue";
 import TaskItem from "./components/TaskItem.vue";
 import StatsView from "./components/StatsView.vue";
@@ -108,6 +132,52 @@ const currentView = ref<View>("tasks");
 const tabs = ["All Tasks", "In Progress", "Completed"];
 const currentTab = ref("All Tasks");
 const showModal = ref(false);
+const searchQuery = ref("");
+
+const loadTasks = async () => {
+  try {
+    const result = await invoke("list_tasks", {
+      req: {
+        page_index: 1,
+        page_size: 100,
+        task_name: searchQuery.value || null,
+        done:
+          currentTab.value === "All Tasks"
+            ? null
+            : currentTab.value === "In Progress"
+              ? 1
+              : 2,
+      },
+    });
+
+    const response = result as any;
+    if (response.data) {
+      tasks.value = response.data.map((t: any) => ({
+        id: t.task_id,
+        title: t.title,
+        category: t.category_name || "Other",
+        completed: t.done === 2,
+        elapsed: 0,
+        sessionTime: 0,
+        isTracking: false,
+      }));
+    }
+  } catch (error) {
+    console.error("Failed to load tasks:", error);
+  }
+};
+
+const handleSearch = () => {
+  loadTasks();
+};
+
+watch(currentTab, () => {
+  loadTasks();
+});
+
+onMounted(() => {
+  loadTasks();
+});
 
 const filteredTasks = computed(() => {
   if (currentTab.value === "All Tasks") return tasks.value;
@@ -244,13 +314,53 @@ const handleAddTaskStart = async (data: {
 .section-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
   gap: 8px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin-bottom: 12px;
+}
+
+.search-box {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 12px 6px 36px;
+  font-size: 13px;
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-input:focus {
+  border-color: var(--text-primary);
 }
 
 .count {
