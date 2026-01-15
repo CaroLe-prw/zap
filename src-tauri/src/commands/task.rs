@@ -41,7 +41,7 @@ pub struct TaskQuery {
     task_name: Option<String>,
     /// 按任务状态分类
     #[builder(default)]
-    done: Option<u8>,
+    done: Option<bool>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -51,7 +51,7 @@ pub struct TaskResponse {
     /// 任务标题
     title: String,
     /// 任务状态
-    done: u8,
+    done: bool,
     /// 分类id
     category_id: Option<u32>,
     /// 分类名称

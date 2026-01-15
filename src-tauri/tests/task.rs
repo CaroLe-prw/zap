@@ -25,7 +25,7 @@ async fn test_list_tasks() {
         .expect("Failed to setup test database");
 
     let req = commands::TaskQueryBuilder::default()
-        .done(0)
+        .done(false)
         .page_size(10u32)
         .page_index(1u32)
         .build()
