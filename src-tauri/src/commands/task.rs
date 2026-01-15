@@ -1,9 +1,9 @@
 use derive_builder::Builder;
 
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool, prelude::FromRow};
 
-use crate::error::ZapError;
+use crate::{commands::types::PaginatedResponse, error::ZapError};
 
 #[derive(Debug, Serialize, Deserialize, Builder)]
 #[builder(setter(into, strip_option))]
@@ -25,6 +25,39 @@ pub struct CreateTaskRequest {
     /// 是否立即开始并且开始计时
     #[builder(default)]
     start_on_create: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Builder)]
+#[builder(setter(into, strip_option))]
+pub struct TaskQuery {
+    /// 当前页码
+    #[builder(default = "1")]
+    page_index: u32,
+    /// 每页数量
+    #[builder(default = "20")]
+    page_size: u32,
+    /// 按任务名称模糊搜索
+    #[builder(default)]
+    task_name: Option<String>,
+    /// 按任务状态分类
+    #[builder(default)]
+    done: Option<u8>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct TaskResponse {
+    /// 任务Id
+    task_id: u32,
+    /// 任务标题
+    title: String,
+    /// 任务状态
+    done: u8,
+    /// 分类id
+    category_id: Option<u32>,
+    /// 分类名称
+    category_name: Option<String>,
+    /// 分类颜色
+    color: Option<String>,
 }
 
 pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<(), ZapError> {
@@ -73,4 +106,52 @@ pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<
 
     tx.commit().await?;
     Ok(())
+}
+
+pub async fn list_tasks_impl(
+    pool: &SqlitePool,
+    req: TaskQuery,
+) -> Result<PaginatedResponse<TaskResponse>, ZapError> {
+    let mut count_qb = QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM tasks t WHERE 1=1");
+    apply_filters(&mut count_qb, &req);
+    let total: u32 = count_qb.build_query_as::<(i64,)>().fetch_one(pool).await?.0 as u32;
+
+    if total == 0 {
+        return Ok(PaginatedResponse::empty(req.page_index, req.page_size));
+    }
+
+    let mut qb = QueryBuilder::<Sqlite>::new(
+        "SELECT t.id AS task_id, t.title, t.done, t.category_id, c.name AS category_name, c.color \
+         FROM tasks t \
+         LEFT JOIN categories c ON t.category_id = c.id \
+         WHERE 1=1",
+    );
+    apply_filters(&mut qb, &req);
+    qb.push(" ORDER BY t.id DESC");
+
+    let offset = (req.page_index.saturating_sub(1)) * req.page_size;
+    qb.push(" LIMIT ");
+    qb.push_bind(req.page_size as i64);
+    qb.push(" OFFSET ");
+    qb.push_bind(offset as i64);
+
+    let tasks = qb.build_query_as::<TaskResponse>().fetch_all(pool).await?;
+
+    Ok(PaginatedResponse::new(
+        tasks,
+        total,
+        req.page_index,
+        req.page_size,
+    ))
+}
+
+fn apply_filters<'a>(qb: &mut QueryBuilder<'a, Sqlite>, req: &'a TaskQuery) {
+    if let Some(ref name) = req.task_name {
+        qb.push(" AND t.title LIKE ");
+        qb.push_bind(format!("%{}%", name));
+    }
+    if let Some(done) = req.done {
+        qb.push(" AND t.done = ");
+        qb.push_bind(done);
+    }
 }
