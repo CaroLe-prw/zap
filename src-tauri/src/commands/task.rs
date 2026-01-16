@@ -3,7 +3,7 @@ use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use sqlx::{
-    QueryBuilder, Sqlite, SqlitePool,
+    QueryBuilder, Sqlite, SqlitePool, Transaction,
     prelude::{FromRow, Type},
 };
 
@@ -16,6 +16,30 @@ pub enum TaskStatus {
     Todo = 0,
     Running = 1,
     Finished = 2,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct Tasks {
+    /// 任务Id
+    id: u32,
+    /// 任务标题
+    title: String,
+    /// 任务运行状态
+    done: TaskStatus,
+    /// 分类id
+    category_id: Option<u32>,
+    ///预估用时
+    estimate_seconds: Option<u32>,
+    /// 任务备注
+    notes: Option<String>,
+    ///是否加入 Today Focus：0=否，1=是
+    is_today_focus: Option<bool>,
+    ///创建时间
+    created_at: String,
+    ///更新时间
+    updated_at: String,
+    /// 完成时间
+    completed_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Builder)]
@@ -33,8 +57,8 @@ pub struct CreateTaskRequest {
     #[builder(default)]
     notes: Option<String>,
     /// 是否加入Today Focus
-    #[builder(default = "false")]
-    is_today_focus: bool,
+    #[builder(default)]
+    is_today_focus: Option<bool>,
     /// 是否立即开始并且开始计时
     #[builder(default)]
     start_on_create: Option<bool>,
@@ -71,6 +95,8 @@ pub struct TaskResponse {
     category_name: Option<String>,
     /// 分类颜色
     color: Option<String>,
+    /// 实际运行总时长（秒）
+    total_duration_seconds: i64,
 }
 
 pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<(), ZapError> {
@@ -85,7 +111,7 @@ pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<
     if let Some(category_id) = req.category_id {
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM categories WHERE id = ?")
             .bind(category_id)
-            .fetch_one(&mut *tx)
+            .fetch_one(tx.as_mut())
             .await?;
 
         if count == 0 {
@@ -103,7 +129,7 @@ pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<
     .bind(req.estimate_seconds)
     .bind(&req.notes)
     .bind(req.is_today_focus)
-    .execute(&mut *tx)
+    .execute(tx.as_mut())
     .await?;
 
     let task_id = res.last_insert_rowid();
@@ -113,7 +139,7 @@ pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<
             .bind(task_id)
             .bind(&now)
             .bind(format!("{} #1", req.title))
-            .execute(&mut *tx)
+            .execute(tx.as_mut())
             .await?;
     }
 
@@ -134,7 +160,8 @@ pub async fn list_tasks_impl(
     }
 
     let mut qb = QueryBuilder::<Sqlite>::new(
-        "SELECT t.id AS task_id, t.title, t.done, t.category_id, c.name AS category_name, c.color \
+        "SELECT t.id AS task_id, t.title, t.done, t.category_id, c.name AS category_name, c.color, \
+         COALESCE((SELECT SUM(duration_seconds) FROM time_entries WHERE task_id = t.id), 0) AS total_duration_seconds \
          FROM tasks t \
          LEFT JOIN categories c ON t.category_id = c.id \
          WHERE 1=1",
@@ -156,6 +183,85 @@ pub async fn list_tasks_impl(
         req.page_index,
         req.page_size,
     ))
+}
+
+pub async fn start_task_impl(pool: &SqlitePool, task_id: u32) -> Result<(), ZapError> {
+    let task = get_task_by_id(pool, task_id).await?;
+    if task.done != TaskStatus::Todo {
+        return Err(ZapError::TaskAlreadyStarted(task_id));
+    }
+
+    let mut tx = pool.begin().await?;
+
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM time_entries WHERE task_id = ?")
+        .bind(task_id)
+        .fetch_one(tx.as_mut())
+        .await?;
+
+    let next_session_num = count + 1;
+    let note = format!("{} #{}", task.title, next_session_num);
+
+    update_task_status(&mut tx, task_id, TaskStatus::Running).await?;
+
+    let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    sqlx::query("INSERT INTO time_entries (task_id, started_at, note) VALUES (?, ?, ?)")
+        .bind(task_id)
+        .bind(now)
+        .bind(note)
+        .execute(tx.as_mut())
+        .await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn stop_task_impl(pool: &SqlitePool, task_id: u32) -> Result<(), ZapError> {
+    let task = get_task_by_id(pool, task_id).await?;
+    if task.done != TaskStatus::Running {
+        return Err(ZapError::TaskNotStarted(task_id));
+    }
+
+    let mut tx = pool.begin().await?;
+
+    update_task_status(&mut tx, task_id, TaskStatus::Todo).await?;
+
+    sqlx::query(
+        r#"
+        UPDATE time_entries
+        SET
+            ended_at = datetime('now'),
+            duration_seconds = CAST((strftime('%s', 'now') - strftime('%s', started_at)) AS INTEGER)
+        WHERE task_id = ? AND ended_at IS NULL
+        "#,
+    )
+    .bind(task_id)
+    .execute(tx.as_mut())
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+async fn update_task_status(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: u32,
+    done: TaskStatus,
+) -> Result<(), ZapError> {
+    sqlx::query("UPDATE tasks SET done = ? WHERE id = ?")
+        .bind(done)
+        .bind(task_id)
+        .execute(tx.as_mut())
+        .await?;
+
+    Ok(())
+}
+
+async fn get_task_by_id(pool: &SqlitePool, task_id: u32) -> Result<Tasks, ZapError> {
+    sqlx::query_as::<_, Tasks>(
+        "SELECT id , title, done, category_id, estimate_seconds, notes, is_today_focus, created_at, updated_at, completed_at FROM tasks WHERE id = ?",
+    ).bind(task_id).fetch_optional(pool).await?.ok_or(ZapError::TaskNotFound(task_id))
 }
 
 fn apply_filters<'a>(qb: &mut QueryBuilder<'a, Sqlite>, req: &'a TaskQuery) {

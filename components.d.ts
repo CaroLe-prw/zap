@@ -12,7 +12,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AddTaskModal: typeof import('./src/components/AddTaskModal.vue')['default']
-    NInput: typeof import('naive-ui')['NInput']
     StatsView: typeof import('./src/components/StatsView.vue')['default']
     TaskItem: typeof import('./src/components/TaskItem.vue')['default']
     TodayFocus: typeof import('./src/components/TodayFocus.vue')['default']

@@ -2,7 +2,10 @@
   <div class="task-item" :class="{ active: task.isTracking }">
     <div class="task-content">
       <div class="task-main">
-        <NCheckbox v-model:checked="task.completed" />
+        <NCheckbox
+          :checked="task.completed"
+          @update:checked="$emit('complete', task, $event)"
+        />
         <span class="task-title" :class="{ completed: task.completed }">
           {{ task.title }}
         </span>
@@ -15,10 +18,16 @@
           {{ task.category }}
         </NTag>
       </div>
-      <div v-if="task.isTracking || task.elapsed > 0" class="task-tracking">
+      <div
+        v-if="task.isTracking || task.totalDurationSeconds > 0"
+        class="task-tracking"
+      >
         <span v-if="task.isTracking" class="tracking-dot"></span>
         <span class="tracking-time">{{
-          formatTime(task.isTracking ? task.sessionTime : task.elapsed)
+          formatTime(
+            task.totalDurationSeconds +
+              (task.isTracking ? task.sessionTime : 0),
+          )
         }}</span>
       </div>
     </div>
@@ -43,6 +52,7 @@ interface Task {
   elapsed: number;
   sessionTime: number;
   isTracking: boolean;
+  totalDurationSeconds: number;
 }
 
 defineProps<{
@@ -53,6 +63,7 @@ defineProps<{
 
 defineEmits<{
   (e: "toggle", task: Task): void;
+  (e: "complete", task: Task, completed: boolean): void;
 }>();
 </script>
 

@@ -41,13 +41,8 @@ pub fn set_db(app: &mut App) -> Result<(), ZapError> {
     let db_url = format!("sqlite://{}", db_path.to_string_lossy());
 
     let handle = app.handle().clone();
-    tauri::async_runtime::spawn(async move {
-        match init_db(&db_url).await {
-            Ok(pool) => {
-                handle.manage(Db::new(pool));
-            }
-            Err(e) => log::error!("init_db failed: {e}"),
-        }
-    });
+
+    let pool = tauri::async_runtime::block_on(async move { init_db(&db_url).await })?;
+    handle.manage(Db::new(pool));
     Ok(())
 }

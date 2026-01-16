@@ -3,17 +3,18 @@
     <!-- Task View -->
     <template v-if="currentView === 'tasks'">
       <header class="header">
-        <h1 class="logo">Zap</h1>
-        <nav class="nav">
+        <nav class="tabs">
           <button
             v-for="tab in tabs"
             :key="tab"
-            class="nav-item"
+            class="tab-item"
             :class="{ active: currentTab === tab }"
             @click="currentTab = tab"
           >
             {{ tab }}
           </button>
+        </nav>
+        <nav class="nav">
           <button
             class="icon-btn"
             title="Statistics"
@@ -86,6 +87,15 @@
             :format-time="formatTime"
             @toggle="toggleTimer"
           />
+          <div v-if="filteredTasks.length === 0" class="empty-state">
+            <p>
+              No
+              {{
+                currentTab === "All Tasks" ? "" : currentTab.toLowerCase()
+              }}
+              tasks yet
+            </p>
+          </div>
         </div>
       </main>
 
@@ -159,7 +169,8 @@ const loadTasks = async () => {
         completed: t.done === 2,
         elapsed: 0,
         sessionTime: 0,
-        isTracking: false,
+        isTracking: t.done === 1,
+        totalDurationSeconds: t.total_duration_seconds || 0,
       }));
     }
   } catch (error) {
@@ -235,7 +246,7 @@ const handleAddTaskStart = async (data: {
 .app {
   max-width: 640px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: 32px 24px 120px;
   min-height: 100vh;
 }
 
@@ -246,20 +257,13 @@ const handleAddTaskStart = async (data: {
   margin-bottom: 24px;
 }
 
-.logo {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.5;
-}
-
-.nav {
+.tabs {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
 }
 
-.nav-item {
+.tab-item {
   background: none;
   border: none;
   font-size: 14px;
@@ -269,13 +273,19 @@ const handleAddTaskStart = async (data: {
   transition: color 0.15s;
 }
 
-.nav-item:hover {
+.tab-item:hover {
   color: var(--text-secondary);
 }
 
-.nav-item.active {
+.tab-item.active {
   color: var(--text-primary);
   font-weight: 500;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .icon-btn {
@@ -378,17 +388,27 @@ const handleAddTaskStart = async (data: {
   overflow: hidden;
 }
 
-.main {
-  margin-bottom: 24px;
+.empty-state {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
 }
 
 .footer {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 24px;
+  width: calc(100% - 48px);
+  max-width: 592px;
   display: flex;
   justify-content: space-between;
   padding: 16px 20px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
+  box-sizing: border-box;
 }
 
 .stat {

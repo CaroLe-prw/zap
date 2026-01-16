@@ -9,6 +9,7 @@ export interface Task {
   elapsed: number;
   sessionTime: number;
   isTracking: boolean;
+  totalDurationSeconds: number;
 }
 
 interface AddTaskData {
@@ -25,14 +26,19 @@ interface AddTaskData {
 export function useTasks() {
   const tasks = ref<Task[]>([]);
 
-  const stopOtherTimers = () => {
-    tasks.value.forEach((t) => {
+  const stopOtherTimers = async () => {
+    for (const t of tasks.value) {
       if (t.isTracking) {
+        try {
+          await invoke("stop_task", { taskId: t.id });
+        } catch (error) {
+          console.error("Failed to stop task:", error);
+        }
         t.elapsed += t.sessionTime;
         t.sessionTime = 0;
         t.isTracking = false;
       }
-    });
+    }
   };
 
   const addTask = async (data: AddTaskData) => {
@@ -59,11 +65,12 @@ export function useTasks() {
       elapsed: 0,
       sessionTime: 0,
       isTracking: false,
+      totalDurationSeconds: 0,
     });
   };
 
   const addTaskAndStart = async (data: AddTaskData) => {
-    stopOtherTimers();
+    await stopOtherTimers();
     try {
       await invoke("add_task", {
         createTask: {
@@ -87,16 +94,27 @@ export function useTasks() {
       elapsed: 0,
       sessionTime: 0,
       isTracking: true,
+      totalDurationSeconds: 0,
     });
   };
 
-  const toggleTimer = (task: Task) => {
+  const toggleTimer = async (task: Task) => {
     if (task.isTracking) {
+      try {
+        await invoke("stop_task", { taskId: task.id });
+      } catch (error) {
+        console.error("Failed to stop task:", error);
+      }
       task.elapsed += task.sessionTime;
       task.sessionTime = 0;
       task.isTracking = false;
     } else {
-      stopOtherTimers();
+      await stopOtherTimers();
+      try {
+        await invoke("start_task", { taskId: task.id });
+      } catch (error) {
+        console.error("Failed to start task:", error);
+      }
       task.sessionTime = 0;
       task.isTracking = true;
     }

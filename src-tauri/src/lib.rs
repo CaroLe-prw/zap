@@ -22,7 +22,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::add_task,
             commands::list_categories,
-            commands::list_tasks
+            commands::list_tasks,
+            commands::start_task,
+            commands::stop_task
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
