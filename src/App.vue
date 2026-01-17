@@ -81,18 +81,17 @@
         <div class="task-list">
           <TaskItem
             v-for="task in filteredTasks"
-            :key="task.id"
+            :key="`${currentTab}-${currentPage}-${task.id}`"
             :task="task"
-            :tag-color="tagColor"
             :format-time="formatTime"
+            :format-time-short="formatTimeShort"
             @toggle="toggleTimer"
+            @complete="handleComplete"
           />
           <div v-if="filteredTasks.length === 0" class="empty-state">
             <p>
               No
-              {{
-                currentTab === "All Tasks" ? "" : currentTab.toLowerCase()
-              }}
+              {{ currentTab === "All Tasks" ? "" : currentTab.toLowerCase() }}
               tasks yet
             </p>
           </div>
@@ -102,13 +101,36 @@
       <footer class="footer">
         <div class="stat">
           <span class="stat-label">Total</span>
-          <span class="stat-value">{{ formatTime(totalTime) }}</span>
+          <span class="stat-value">{{ formatTimeShort(totalTime) }}</span>
+        </div>
+        <div v-if="totalPages > 1" class="pagination">
+          <button
+            class="page-btn"
+            :disabled="currentPage === 1"
+            @click="prevPage"
+          >
+            <
+          </button>
+          <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+          <button
+            class="page-btn"
+            :disabled="currentPage === totalPages"
+            @click="nextPage"
+          >
+            >
+          </button>
         </div>
         <div class="stat">
           <span class="stat-label">This week</span>
-          <span class="stat-value">{{ formatTime(weekTime) }}</span>
+          <span class="stat-value">{{ formatTimeShort(weekTime) }}</span>
         </div>
       </footer>
+
+      <!-- Undo Toast -->
+      <div v-if="undoToast.visible" class="undo-toast">
+        <span>Task Completed.</span>
+        <button class="undo-btn" @click="handleUndo">Undo</button>
+      </div>
     </template>
 
     <!-- Stats View -->
@@ -136,6 +158,9 @@ import { useTasks, type Task } from "./composables/useTasks";
 
 const { tasks, addTask, addTaskAndStart, toggleTimer } = useTasks();
 
+// Undo Toast 状态
+const undoToast = ref({ visible: false, taskId: 0, taskTitle: "" });
+
 type View = "tasks" | "stats";
 const currentView = ref<View>("tasks");
 
@@ -143,13 +168,15 @@ const tabs = ["All Tasks", "In Progress", "Completed"];
 const currentTab = ref("All Tasks");
 const showModal = ref(false);
 const searchQuery = ref("");
+const currentPage = ref(1);
+const totalPages = ref(1);
 
-const loadTasks = async () => {
+const loadTasks = async (page = 1) => {
   try {
     const result = await invoke("list_tasks", {
       req: {
-        page_index: 1,
-        page_size: 100,
+        page_index: page,
+        page_size: 5,
         task_name: searchQuery.value || null,
         done:
           currentTab.value === "All Tasks"
@@ -162,15 +189,21 @@ const loadTasks = async () => {
 
     const response = result as any;
     if (response.data) {
+      currentPage.value = response.page_index;
+      totalPages.value = Math.ceil(response.total / response.page_size);
       tasks.value = response.data.map((t: any) => ({
         id: t.task_id,
         title: t.title,
         category: t.category_name || "Other",
+        color: t.color,
         completed: t.done === 2,
         elapsed: 0,
-        sessionTime: 0,
+        sessionTime: t.session_seconds || 0,
         isTracking: t.done === 1,
+        isFinishing: false,
         totalDurationSeconds: t.total_duration_seconds || 0,
+        todayDuration: t.today_duration_seconds || 0,
+        completedAt: t.completed_at,
       }));
     }
   } catch (error) {
@@ -179,10 +212,24 @@ const loadTasks = async () => {
 };
 
 const handleSearch = () => {
+  currentPage.value = 1;
   loadTasks();
 };
 
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    loadTasks(currentPage.value - 1);
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    loadTasks(currentPage.value + 1);
+  }
+};
+
 watch(currentTab, () => {
+  currentPage.value = 1;
   loadTasks();
 });
 
@@ -193,7 +240,7 @@ onMounted(() => {
 const filteredTasks = computed(() => {
   if (currentTab.value === "All Tasks") return tasks.value;
   if (currentTab.value === "In Progress")
-    return tasks.value.filter((t) => !t.completed);
+    return tasks.value.filter((t) => t.isTracking);
   return tasks.value.filter((t) => t.completed);
 });
 
@@ -205,21 +252,80 @@ const totalTime = computed(() =>
 );
 const weekTime = ref(28800);
 
-const tagColor = (category: string) => {
-  const colors: Record<string, { color: string; textColor: string }> = {
-    Work: { color: "#dbeafe", textColor: "#1d4ed8" },
-    Design: { color: "#f3f4f6", textColor: "#374151" },
-    "Code Review": { color: "#f3f4f6", textColor: "#374151" },
-    Meeting: { color: "#fef3c7", textColor: "#b45309" },
-  };
-  return colors[category] || { color: "#f3f4f6", textColor: "#374151" };
-};
-
 const formatTime = (seconds: number) => {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+};
+
+const formatTimeShort = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (seconds === 0) {
+    return "0h 0m";
+  }
+  if (h > 0) {
+    return `${h}h ${m}m`;
+  }
+  return `${m}m`;
+};
+
+const finishTask = async (taskId: number) => {
+  try {
+    await invoke("finish_task", { taskId });
+  } catch (error) {
+    console.error("Failed to finish task:", error);
+  }
+};
+
+const toggleTaskDone = async (taskId: number) => {
+  try {
+    await invoke("toggle_task_done", { taskId });
+  } catch (error) {
+    console.error("Failed to toggle task done:", error);
+  }
+};
+
+const handleComplete = async (task: Task) => {
+  if (task.completed) {
+    // 在 Completed 列表，点击勾选取消完成
+    await toggleTaskDone(task.id);
+    task.completed = false;
+    await loadTasks();
+  } else {
+    // 未完成状态，点击勾选完成任务
+    // 阶段一：任务变灰打勾
+    task.isFinishing = true;
+    await finishTask(task.id);
+    task.completed = true;
+    task.isFinishing = false;
+
+    // 阶段二：延迟后移除任务并显示 Undo Toast
+    setTimeout(() => {
+      const index = tasks.value.findIndex((t) => t.id === task.id);
+      if (index > -1) {
+        tasks.value.splice(index, 1);
+      }
+      undoToast.value = {
+        visible: true,
+        taskId: task.id,
+        taskTitle: task.title,
+      };
+
+      // 5秒后自动隐藏
+      setTimeout(() => {
+        undoToast.value.visible = false;
+      }, 5000);
+    }, 800);
+  }
+};
+
+const handleUndo = async () => {
+  await toggleTaskDone(undoToast.value.taskId);
+  undoToast.value.visible = false;
+  // 刷新列表让任务恢复
+  await loadTasks();
 };
 
 const handleAddTask = async (data: {
@@ -229,6 +335,7 @@ const handleAddTask = async (data: {
   estimateSeconds: number | null;
 }) => {
   await addTask(data);
+  await loadTasks();
 };
 
 const handleAddTaskStart = async (data: {
@@ -238,6 +345,7 @@ const handleAddTaskStart = async (data: {
   estimateSeconds: number | null;
 }) => {
   await addTaskAndStart(data);
+  await loadTasks();
   currentTab.value = "In Progress";
 };
 </script>
@@ -414,7 +522,7 @@ const handleAddTaskStart = async (data: {
 .stat {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .stat-label {
@@ -427,5 +535,79 @@ const handleAddTaskStart = async (data: {
   font-weight: 600;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: var(--bg-page);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.undo-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 100px;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  z-index: 100;
+  animation: slideUp 0.3s ease;
+}
+
+.undo-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+
+.undo-btn:hover {
+  text-decoration: underline;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 </style>

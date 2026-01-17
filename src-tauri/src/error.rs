@@ -22,6 +22,9 @@ pub enum ZapError {
     /// 任务未开始
     #[error("Task not started: id={0}")]
     TaskNotStarted(u32),
+    /// 任务未完成
+    #[error("Task not done: id={0}")]
+    TaskNotDone(u32),
     /// 分类不存在（根据 ID 查询未命中）
     #[error("Category not found: id={0}")]
     CategoryNotFound(u32),

@@ -1,15 +1,19 @@
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface Task {
   id: number;
   title: string;
   category: string;
+  color: string | null;
   completed: boolean;
   elapsed: number;
   sessionTime: number;
   isTracking: boolean;
+  isFinishing: boolean;
   totalDurationSeconds: number;
+  todayDuration: number;
+  completedAt: string | null;
 }
 
 interface AddTaskData {
@@ -61,11 +65,15 @@ export function useTasks() {
       id: Date.now(),
       title: data.form.taskName,
       category,
+      color: null,
       completed: false,
       elapsed: 0,
       sessionTime: 0,
       isTracking: false,
+      isFinishing: false,
       totalDurationSeconds: 0,
+      todayDuration: 0,
+      completedAt: null,
     });
   };
 
@@ -90,11 +98,15 @@ export function useTasks() {
       id: Date.now(),
       title: data.form.taskName,
       category,
+      color: null,
       completed: false,
       elapsed: 0,
       sessionTime: 0,
       isTracking: true,
+      isFinishing: false,
       totalDurationSeconds: 0,
+      todayDuration: 0,
+      completedAt: null,
     });
   };
 
@@ -106,6 +118,8 @@ export function useTasks() {
         console.error("Failed to stop task:", error);
       }
       task.elapsed += task.sessionTime;
+      task.totalDurationSeconds += task.sessionTime;
+      task.todayDuration += task.sessionTime;
       task.sessionTime = 0;
       task.isTracking = false;
     } else {

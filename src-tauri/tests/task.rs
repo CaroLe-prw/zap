@@ -57,3 +57,25 @@ async fn test_stop_task() {
         .await
         .expect("Failed to stop task");
 }
+
+#[tokio::test]
+async fn test_finish_task() {
+    let pool: SqlitePool = common::setup_test_db()
+        .await
+        .expect("Failed to setup test database");
+
+    commands::finish_task_impl(&pool, 1)
+        .await
+        .expect("Failed finish task");
+}
+
+#[tokio::test]
+async fn test_toggle_task_done() {
+    let pool: SqlitePool = common::setup_test_db()
+        .await
+        .expect("Failed to setup test database");
+
+    commands::toggle_task_done_impl(&pool, 1)
+        .await
+        .expect("Failed finish task");
+}

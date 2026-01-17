@@ -13,10 +13,10 @@
     "windows": [
       {
         "title": "zap",
-        "width": 800,
-        "height": 600,
-        "resizable": true,
-        "fullscreen": false
+        "width": 500,
+        "height": 800,
+        "fullscreen": false,
+        "resizable": false
       }
     ],
     "security": {

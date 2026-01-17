@@ -97,6 +97,12 @@ pub struct TaskResponse {
     color: Option<String>,
     /// 实际运行总时长（秒）
     total_duration_seconds: i64,
+    /// 今日运行时长（秒）
+    today_duration_seconds: i64,
+    /// 完成时间
+    completed_at: Option<String>,
+    /// 当前会话时长(秒)
+    session_seconds: i64,
 }
 
 pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<(), ZapError> {
@@ -161,13 +167,17 @@ pub async fn list_tasks_impl(
 
     let mut qb = QueryBuilder::<Sqlite>::new(
         "SELECT t.id AS task_id, t.title, t.done, t.category_id, c.name AS category_name, c.color, \
-         COALESCE((SELECT SUM(duration_seconds) FROM time_entries WHERE task_id = t.id), 0) AS total_duration_seconds \
+         COALESCE((SELECT SUM(duration_seconds) FROM time_entries WHERE task_id = t.id), 0) AS total_duration_seconds, \
+         COALESCE((SELECT SUM(duration_seconds) FROM time_entries WHERE task_id = t.id AND date(started_at) = date('now')), 0) AS today_duration_seconds, \
+         t.completed_at, \
+         CASE WHEN t.done = 1 THEN CAST((strftime('%s', 'now') - strftime('%s', te.started_at)) AS INTEGER) ELSE 0 END AS session_seconds \
          FROM tasks t \
          LEFT JOIN categories c ON t.category_id = c.id \
+         LEFT JOIN time_entries te ON t.id = te.task_id AND te.ended_at IS NULL \
          WHERE 1=1",
     );
     apply_filters(&mut qb, &req);
-    qb.push(" ORDER BY t.id DESC");
+    qb.push(" ORDER BY t.done ASC,t.created_at DESC");
 
     let offset = (req.page_index.saturating_sub(1)) * req.page_size;
     qb.push(" LIMIT ");
@@ -221,26 +231,44 @@ pub async fn stop_task_impl(pool: &SqlitePool, task_id: u32) -> Result<(), ZapEr
     if task.done != TaskStatus::Running {
         return Err(ZapError::TaskNotStarted(task_id));
     }
-
     let mut tx = pool.begin().await?;
 
     update_task_status(&mut tx, task_id, TaskStatus::Todo).await?;
-
-    sqlx::query(
-        r#"
-        UPDATE time_entries
-        SET
-            ended_at = datetime('now'),
-            duration_seconds = CAST((strftime('%s', 'now') - strftime('%s', started_at)) AS INTEGER)
-        WHERE task_id = ? AND ended_at IS NULL
-        "#,
-    )
-    .bind(task_id)
-    .execute(tx.as_mut())
-    .await?;
+    update_time_entries(&mut tx, task_id).await?;
 
     tx.commit().await?;
+    Ok(())
+}
 
+pub async fn finish_task_impl(pool: &SqlitePool, task_id: u32) -> Result<(), ZapError> {
+    let task = get_task_by_id(pool, task_id).await?;
+
+    let mut tx = pool.begin().await?;
+
+    if task.done == TaskStatus::Running {
+        update_task_status(&mut tx, task_id, TaskStatus::Todo).await?;
+        update_time_entries(&mut tx, task_id).await?;
+    }
+
+    update_task_status(&mut tx, task_id, TaskStatus::Finished).await?;
+
+    sqlx::query("UPDATE tasks SET completed_at = datetime('now')  WHERE id = ?")
+        .bind(task_id)
+        .execute(tx.as_mut())
+        .await?;
+
+    tx.commit().await?;
+    Ok(())
+}
+
+pub async fn toggle_task_done_impl(pool: &SqlitePool, task_id: u32) -> Result<(), ZapError> {
+    let task = get_task_by_id(pool, task_id).await?;
+    if task.done != TaskStatus::Finished {
+        return Err(ZapError::TaskNotDone(task_id));
+    }
+    let mut tx = pool.begin().await?;
+    update_task_status(&mut tx, task_id, TaskStatus::Todo).await?;
+    tx.commit().await?;
     Ok(())
 }
 
@@ -254,6 +282,26 @@ async fn update_task_status(
         .bind(task_id)
         .execute(tx.as_mut())
         .await?;
+
+    Ok(())
+}
+
+async fn update_time_entries(
+    tx: &mut Transaction<'_, Sqlite>,
+    task_id: u32,
+) -> Result<(), ZapError> {
+    sqlx::query(
+        r#"
+        UPDATE time_entries
+        SET
+            ended_at = datetime('now'),
+            duration_seconds = CAST((strftime('%s', 'now') - strftime('%s', started_at)) AS INTEGER)
+        WHERE task_id = ? AND ended_at IS NULL
+        "#,
+    )
+    .bind(task_id)
+    .execute(tx.as_mut())
+    .await?;
 
     Ok(())
 }
@@ -272,5 +320,7 @@ fn apply_filters<'a>(qb: &mut QueryBuilder<'a, Sqlite>, req: &'a TaskQuery) {
     if let Some(done) = req.done {
         qb.push(" AND t.done = ");
         qb.push_bind(done);
+    } else {
+        qb.push(" AND t.done IN (0, 1)");
     }
 }

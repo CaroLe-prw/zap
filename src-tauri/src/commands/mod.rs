@@ -4,8 +4,8 @@ pub mod types;
 pub use crate::commands::{
     categories::{CategoryResponse, list_categories_impl},
     task::{
-        CreateTaskRequestBuilder, TaskQueryBuilder, add_task_impl, list_tasks_impl,
-        start_task_impl, stop_task_impl,
+        CreateTaskRequestBuilder, TaskQueryBuilder, add_task_impl, finish_task_impl,
+        list_tasks_impl, start_task_impl, stop_task_impl, toggle_task_done_impl,
     },
 };
 use crate::{
@@ -46,4 +46,14 @@ pub async fn start_task(db: tauri::State<'_, Db>, task_id: u32) -> Result<(), Za
 #[tauri::command]
 pub async fn stop_task(db: tauri::State<'_, Db>, task_id: u32) -> Result<(), ZapError> {
     stop_task_impl(&db.pool, task_id).await
+}
+
+#[tauri::command]
+pub async fn finish_task(db: tauri::State<'_, Db>, task_id: u32) -> Result<(), ZapError> {
+    finish_task_impl(&db.pool, task_id).await
+}
+
+#[tauri::command]
+pub async fn toggle_task_done(db: tauri::State<'_, Db>, task_id: u32) -> Result<(), ZapError> {
+    toggle_task_done_impl(&db.pool, task_id).await
 }
