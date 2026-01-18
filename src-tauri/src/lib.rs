@@ -1,6 +1,8 @@
 pub mod commands;
 mod error;
 mod sqlite;
+mod tray;
+use tauri::WindowEvent;
 use tauri_plugin_log::{Target, TargetKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,6 +18,7 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            tray::init_tray(app)?;
             sqlite::set_db(app).map_err(|e| e.to_string())?;
             Ok(())
         })
@@ -31,6 +34,14 @@ pub fn run() {
             commands::get_week_stats,
             commands::get_month_stats,
         ])
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+            {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

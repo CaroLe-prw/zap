@@ -15,7 +15,8 @@
         "title": "zap",
         "width": 630,
         "height": 800,
-        "fullscreen": false
+        "fullscreen": false,
+        "resizable": false
       }
     ],
     "security": {

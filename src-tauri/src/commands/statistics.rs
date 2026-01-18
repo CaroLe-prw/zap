@@ -342,10 +342,10 @@ pub async fn get_month_stats_impl(
         } else {
             // YYYY-MM-DD 格式
             let start_sql = format!("date('{}')", start);
-            let end_sql = query.end_date.as_ref().map_or_else(
-                || start_sql.clone(),
-                |e| format!("date('{}')", e)
-            );
+            let end_sql = query
+                .end_date
+                .as_ref()
+                .map_or_else(|| start_sql.clone(), |e| format!("date('{}')", e));
             (start_sql, end_sql)
         }
     } else {
@@ -435,7 +435,7 @@ pub async fn get_month_stats_impl(
     let end_parsed = if let Some(ref e) = query.end_date {
         chrono::NaiveDate::parse_from_str(e, "%Y-%m-%d")
             .unwrap_or_else(|_| start_parsed + chrono::Duration::days(29))
-    } else if query.start_date.as_ref().map_or(false, |s| s.len() == 7) {
+    } else if query.start_date.as_ref().is_some_and(|s| s.len() == 7) {
         // 如果只有 YYYY-MM，计算月末
         start_parsed + chrono::Duration::days(days_count - 1)
     } else {
