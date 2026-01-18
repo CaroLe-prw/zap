@@ -13,10 +13,9 @@
     "windows": [
       {
         "title": "zap",
-        "width": 500,
+        "width": 630,
         "height": 800,
-        "fullscreen": false,
-        "resizable": false
+        "fullscreen": false
       }
     ],
     "security": {

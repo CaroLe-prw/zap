@@ -25,10 +25,10 @@
           {{ task.category }}
         </NTag>
         <span
-          v-if="!task.completed && task.todayDuration > 0"
+          v-if="!task.completed && task.totalDurationSeconds > 0"
           class="today-time"
         >
-          total: {{ formatTimeShort(task.todayDuration) }}
+          total: {{ formatTimeShort(task.totalDurationSeconds) }}
         </span>
       </div>
       <div

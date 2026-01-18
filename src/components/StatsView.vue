@@ -15,7 +15,7 @@
         </svg>
       </button>
       <h1 class="stats-title">Statistics</h1>
-      <button class="export-btn">
+      <button class="export-btn" disabled>
         <svg
           width="16"
           height="16"
@@ -51,6 +51,7 @@
         :clearable="false"
         size="small"
         class="date-picker-input"
+        placement="bottom-end"
         :style="{ width: datePickerWidth }"
         @update:value="handleDateChange"
       />
@@ -62,20 +63,22 @@
       <div class="summary-cards">
         <div class="summary-card">
           <div class="card-label">Total Today</div>
-          <div class="card-value">2h 45m</div>
+          <div class="card-value">{{ formatCardTime(todayTotalTime) }}</div>
         </div>
         <div class="summary-card">
           <div class="card-label">Focused Time</div>
-          <div class="card-value highlight">2h 00m</div>
+          <div class="card-value highlight">
+            {{ formatCardTime(todayFocusedTime) }}
+          </div>
         </div>
         <div class="summary-card">
           <div class="card-label">Sessions</div>
-          <div class="card-value">4</div>
+          <div class="card-value">{{ todaySessions }}</div>
         </div>
       </div>
 
       <!-- Category Chart -->
-      <div class="chart-section">
+      <div v-if="todayCategories.length > 0" class="chart-section">
         <div class="section-title">Time by Category</div>
         <div class="chart-container">
           <div class="donut-chart">
@@ -95,8 +98,10 @@
               />
             </svg>
             <div class="chart-center">
-              <div class="center-time">1h 25m</div>
-              <div class="center-label">Work</div>
+              <div class="center-time">
+                {{ formatTime(topCategory?.seconds || 0) }}
+              </div>
+              <div class="center-label">{{ topCategory?.name || "-" }}</div>
             </div>
           </div>
           <div class="chart-legend">
@@ -110,7 +115,7 @@
                 :style="{ background: cat.color }"
               ></span>
               <span class="legend-name">{{ cat.name }}</span>
-              <span class="legend-time">{{ cat.time }}</span>
+              <span class="legend-time">{{ formatTime(cat.seconds) }}</span>
               <span class="legend-percent">{{ cat.percentage }}%</span>
             </div>
           </div>
@@ -118,31 +123,40 @@
       </div>
 
       <!-- Detailed Report -->
-      <div class="report-section">
+      <div v-if="todayReport.length > 0" class="report-section">
         <div class="section-title">Detailed Report</div>
         <div class="report-list">
-          <div v-for="item in todayReport" :key="item.task" class="report-item">
+          <div
+            v-for="item in todayReport"
+            :key="item.task_id"
+            class="report-item"
+          >
             <div class="report-main">
               <span
                 class="report-dot"
-                :style="{ background: item.color }"
+                :style="{ background: item.category_color || '#9ca3af' }"
               ></span>
-              <span class="report-task">{{ item.task }}</span>
+              <span class="report-task">{{ item.task_title }}</span>
               <NTag
                 size="small"
                 :bordered="false"
                 :color="getTagColor(item.category)"
               >
-                {{ item.category }}
+                {{ item.category || "Other" }}
               </NTag>
             </div>
             <div class="report-meta">
-              <span class="report-time">{{ item.time }}</span>
-              <span class="report-last">{{ item.last }}</span>
+              <span class="report-time">{{ formatTime(item.seconds) }}</span>
+              <span class="report-last">{{
+                formatCompletedTime(item.last_time) || "-"
+              }}</span>
             </div>
           </div>
         </div>
-        <div class="report-footer">No more entries today</div>
+      </div>
+      <!-- Empty state -->
+      <div v-else class="empty-state">
+        <p>No time tracked today</p>
       </div>
     </template>
 
@@ -152,37 +166,42 @@
       <div class="summary-cards">
         <div class="summary-card">
           <div class="card-label">Total This Week</div>
-          <div class="card-value">28h 45m</div>
+          <div class="card-value">{{ formatCardTime(weekTotalTime) }}</div>
         </div>
         <div class="summary-card">
           <div class="card-label">Daily Average</div>
-          <div class="card-value highlight">4h 06m</div>
+          <div class="card-value highlight">
+            {{ formatCardTime(weekDailyAvg) }}
+          </div>
         </div>
         <div class="summary-card">
           <div class="card-label">Sessions</div>
-          <div class="card-value">32</div>
+          <div class="card-value">{{ weekSessions }}</div>
         </div>
       </div>
 
       <!-- Weekly Bar Chart -->
-      <div class="chart-section">
+      <div v-if="weekData.length > 0" class="chart-section">
         <div class="section-title">Daily Breakdown</div>
         <div class="bar-chart">
-          <div v-for="day in weekData" :key="day.name" class="bar-item">
+          <div v-for="day in weekData" :key="day.date" class="bar-item">
             <div class="bar-track">
               <div
                 class="bar-fill"
-                :style="{ height: day.percentage + '%', background: day.color }"
+                :style="{
+                  height: day.percentage + '%',
+                  background: day.percentage > 0 ? '#3b82f6' : '#64748b',
+                }"
               ></div>
             </div>
-            <div class="bar-label">{{ day.name }}</div>
-            <div class="bar-value">{{ day.time }}</div>
+            <div class="bar-label">{{ day.day_name }}</div>
+            <div class="bar-value">{{ formatTime(day.seconds) }}</div>
           </div>
         </div>
       </div>
 
       <!-- Week Categories -->
-      <div class="chart-section">
+      <div v-if="weekCategories.length > 0" class="chart-section">
         <div class="section-title">Time by Category</div>
         <div class="category-list">
           <div
@@ -198,7 +217,7 @@
               <span class="category-name">{{ cat.name }}</span>
             </div>
             <div class="category-right">
-              <span class="category-time">{{ cat.time }}</span>
+              <span class="category-time">{{ formatTime(cat.seconds) }}</span>
               <span class="category-percent">{{ cat.percentage }}%</span>
             </div>
             <div class="category-bar">
@@ -210,6 +229,10 @@
           </div>
         </div>
       </div>
+      <!-- Empty state -->
+      <div v-if="weekData.length === 0" class="empty-state">
+        <p>No time tracked this week</p>
+      </div>
     </template>
 
     <!-- Month View -->
@@ -218,20 +241,22 @@
       <div class="summary-cards">
         <div class="summary-card">
           <div class="card-label">Total This Month</div>
-          <div class="card-value">126h 30m</div>
+          <div class="card-value">{{ formatCardTime(monthTotalTime) }}</div>
         </div>
         <div class="summary-card">
           <div class="card-label">Daily Average</div>
-          <div class="card-value highlight">4h 21m</div>
+          <div class="card-value highlight">
+            {{ formatCardTime(monthDailyAvg) }}
+          </div>
         </div>
         <div class="summary-card">
           <div class="card-label">Active Days</div>
-          <div class="card-value">29</div>
+          <div class="card-value">{{ monthActiveDays }}</div>
         </div>
       </div>
 
       <!-- Monthly Overview -->
-      <div class="chart-section">
+      <div v-if="monthData.length > 0" class="chart-section">
         <div class="section-title">Monthly Overview</div>
         <div class="month-grid">
           <div
@@ -244,9 +269,9 @@
               medium: day.level === 2,
               high: day.level === 3,
             }"
-            :title="day.date + ': ' + day.time"
+            :title="day.date + ': ' + formatTime(day.seconds)"
           >
-            <span class="day-tooltip">{{ day.time }}</span>
+            <span class="day-tooltip">{{ formatTime(day.seconds) }}</span>
           </div>
         </div>
         <div class="month-legend">
@@ -260,7 +285,7 @@
       </div>
 
       <!-- Month Categories -->
-      <div class="chart-section">
+      <div v-if="monthCategories.length > 0" class="chart-section">
         <div class="section-title">Time by Category</div>
         <div class="category-list">
           <div
@@ -276,7 +301,7 @@
               <span class="category-name">{{ cat.name }}</span>
             </div>
             <div class="category-right">
-              <span class="category-time">{{ cat.time }}</span>
+              <span class="category-time">{{ formatTime(cat.seconds) }}</span>
               <span class="category-percent">{{ cat.percentage }}%</span>
             </div>
             <div class="category-bar">
@@ -290,40 +315,101 @@
       </div>
 
       <!-- Top Tasks -->
-      <div class="report-section">
+      <div v-if="topTasks.length > 0" class="report-section">
         <div class="section-title">Top Tasks</div>
         <div class="report-list">
           <div
             v-for="(item, index) in topTasks"
-            :key="item.task"
+            :key="item.task_id"
             class="report-item"
           >
             <div class="report-main">
               <span class="rank">{{ index + 1 }}</span>
-              <span class="report-task">{{ item.task }}</span>
+              <span class="report-task">{{ item.task_title }}</span>
               <NTag
                 size="small"
                 :bordered="false"
                 :color="getTagColor(item.category)"
               >
-                {{ item.category }}
+                {{ item.category || "Other" }}
               </NTag>
             </div>
-            <div class="report-time">{{ item.time }}</div>
+            <div class="report-time">{{ formatTime(item.seconds) }}</div>
           </div>
         </div>
+      </div>
+      <!-- Empty state -->
+      <div v-if="monthData.length === 0" class="empty-state">
+        <p>No time tracked this month</p>
       </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { formatCompletedTime } from "../utils/time";
 import { NTag, NDatePicker } from "naive-ui";
 
 defineEmits<{
   (e: "back"): void;
 }>();
+
+interface CategoryStat {
+  name: string;
+  color: string;
+  seconds: number;
+  percentage: number;
+}
+
+interface DailyStat {
+  day_name: string;
+  date: string;
+  seconds: number;
+  percentage: number;
+}
+
+interface MonthlyDailyStat {
+  date: string;
+  seconds: number;
+  active: boolean;
+  level: number;
+}
+
+interface TaskStat {
+  task_id: number;
+  task_title: string;
+  category: string | null;
+  category_color: string | null;
+  seconds: number;
+  last_time: string | null;
+}
+
+interface TodayStats {
+  total_seconds: number;
+  focused_seconds: number;
+  sessions_count: number;
+  categories: CategoryStat[];
+  detailed_report: TaskStat[];
+}
+
+interface WeekStats {
+  total_seconds: number;
+  daily_average_seconds: number;
+  sessions_count: number;
+  daily_breakdown: DailyStat[];
+  categories: CategoryStat[];
+}
+
+interface MonthStats {
+  total_seconds: number;
+  daily_average_seconds: number;
+  active_days: number;
+  monthly_overview: MonthlyDailyStat[];
+  categories: CategoryStat[];
+  top_tasks: TaskStat[];
+}
 
 const periods = [
   { label: "Today", value: "today" },
@@ -332,6 +418,10 @@ const periods = [
 ] as const;
 
 const currentPeriod = ref<(typeof periods)[number]["value"]>("today");
+const loading = ref(false);
+const todayStats = ref<TodayStats | null>(null);
+const weekStats = ref<WeekStats | null>(null);
+const monthStats = ref<MonthStats | null>(null);
 
 const today = new Date();
 
@@ -370,8 +460,82 @@ const datePickerWidth = computed(() => {
   return "140px";
 });
 
+// Format seconds to human readable time (e.g., "1h 25m", "30m", "6s")
+const formatTime = (seconds: number): string => {
+  if (seconds < 60) return `${seconds}s`;
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+};
+
+// Format seconds to card value (e.g., "2h 45m")
+const formatCardTime = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${mins}m`;
+};
+
+const fetchStats = async () => {
+  loading.value = true;
+  try {
+    const buildQuery = (): { start_date?: string; end_date?: string } => {
+      if (currentPeriod.value === "today") {
+        if (typeof dateValue.value === "number") {
+          const d = new Date(dateValue.value);
+          // 使用本地时区格式化 YYYY-MM-DD
+          const dateStr = d.toLocaleDateString("en-CA");
+          return { start_date: dateStr };
+        }
+      } else if (currentPeriod.value === "week") {
+        if (Array.isArray(dateValue.value) && dateValue.value.length >= 2) {
+          const start = new Date(dateValue.value[0]).toLocaleDateString(
+            "en-CA",
+          );
+          const end = new Date(dateValue.value[1]).toLocaleDateString("en-CA");
+          return { start_date: start, end_date: end };
+        }
+      } else {
+        // Month - dateValue is timestamp of first day of month
+        if (typeof dateValue.value === "number") {
+          const d = new Date(dateValue.value);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, "0");
+          const dateStr = `${year}-${month}`;
+          return { start_date: dateStr };
+        }
+      }
+      return {};
+    };
+
+    const query = buildQuery();
+
+    if (currentPeriod.value === "today") {
+      todayStats.value = await invoke("get_today_stats", { query });
+    } else if (currentPeriod.value === "week") {
+      weekStats.value = await invoke("get_week_stats", { query });
+    } else {
+      monthStats.value = await invoke("get_month_stats", { query });
+    }
+  } catch (error) {
+    console.error("Failed to fetch stats:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
 watch(currentPeriod, () => {
   dateValue.value = getDefaultValue();
+  fetchStats();
+});
+
+watch(dateValue, () => {
+  fetchStats();
+});
+
+onMounted(() => {
+  fetchStats();
 });
 
 const handleDateChange = (value: number | [number, number] | null) => {
@@ -395,104 +559,35 @@ const handleDateChange = (value: number | [number, number] | null) => {
   }
 };
 
-const todayCategories = [
-  { name: "Work", time: "1h 25m", percentage: 51.1, color: "#3b82f6" },
-  { name: "Study", time: "30m", percentage: 18.2, color: "#a855f7" },
-  { name: "Life", time: "30m", percentage: 18.2, color: "#22c55e" },
-  { name: "Health", time: "15m", percentage: 7.3, color: "#06b6d4" },
-  { name: "Other", time: "9m", percentage: 5.2, color: "#9ca3af" },
-];
+// Computed data for template
+const todayCategories = computed(() => todayStats.value?.categories || []);
+const todayReport = computed(() => todayStats.value?.detailed_report || []);
+const todayTotalTime = computed(() => todayStats.value?.total_seconds || 0);
+const todayFocusedTime = computed(() => todayStats.value?.focused_seconds || 0);
+const todaySessions = computed(() => todayStats.value?.sessions_count || 0);
 
-const todayReport = [
-  {
-    task: "Prepare presentation",
-    category: "Work",
-    time: "1h 25m",
-    last: "9:55 am",
-    color: "#3b82f6",
-  },
-  {
-    task: "Write report",
-    category: "Meeting",
-    time: "30m",
-    last: "10:35 am",
-    color: "#f97316",
-  },
-  {
-    task: "Lunch with friend",
-    category: "Life",
-    time: "30m",
-    last: "12:15 pm",
-    color: "#22c55e",
-  },
-  {
-    task: "Gym workout",
-    category: "Health",
-    time: "15m",
-    last: "13:35 pm",
-    color: "#06b6d4",
-  },
-  {
-    task: "Read book",
-    category: "Study",
-    time: "5m",
-    last: "15:40 pm",
-    color: "#a855f7",
-  },
-];
+const weekData = computed(() => weekStats.value?.daily_breakdown || []);
+const weekCategories = computed(() => weekStats.value?.categories || []);
+const weekTotalTime = computed(() => weekStats.value?.total_seconds || 0);
+const weekDailyAvg = computed(
+  () => weekStats.value?.daily_average_seconds || 0,
+);
+const weekSessions = computed(() => weekStats.value?.sessions_count || 0);
 
-// Week data
-const weekData = [
-  { name: "Mon", time: "4h 20m", percentage: 100, color: "#3b82f6" },
-  { name: "Tue", time: "3h 45m", percentage: 87, color: "#3b82f6" },
-  { name: "Wed", time: "5h 10m", percentage: 100, color: "#3b82f6" },
-  { name: "Thu", time: "4h 30m", percentage: 100, color: "#3b82f6" },
-  { name: "Fri", time: "3h 50m", percentage: 89, color: "#3b82f6" },
-  { name: "Sat", time: "2h 40m", percentage: 62, color: "#64748b" },
-  { name: "Sun", time: "4h 30m", percentage: 100, color: "#64748b" },
-];
+const monthData = computed(() => monthStats.value?.monthly_overview || []);
+const monthCategories = computed(() => monthStats.value?.categories || []);
+const topTasks = computed(() => monthStats.value?.top_tasks || []);
+const monthTotalTime = computed(() => monthStats.value?.total_seconds || 0);
+const monthDailyAvg = computed(
+  () => monthStats.value?.daily_average_seconds || 0,
+);
+const monthActiveDays = computed(() => monthStats.value?.active_days || 0);
 
-const weekCategories = [
-  { name: "Work", time: "18h 30m", percentage: 64.3, color: "#3b82f6" },
-  { name: "Study", time: "4h 15m", percentage: 14.8, color: "#a855f7" },
-  { name: "Meeting", time: "3h 00m", percentage: 10.4, color: "#f97316" },
-  { name: "Life", time: "2h 00m", percentage: 6.9, color: "#22c55e" },
-  { name: "Health", time: "1h 00m", percentage: 3.5, color: "#06b6d4" },
-];
-
-// Month data
-interface MonthDay {
-  date: string;
-  time: string;
-  active: boolean;
-  level: number;
-}
-
-const monthData: MonthDay[] = Array.from({ length: 31 }, (_, i) => ({
-  date: `01-${(i + 1).toString().padStart(2, "0")}`,
-  time:
-    i % 3 === 0
-      ? "0m"
-      : `${Math.floor(Math.random() * 6) + 1}h ${Math.floor(Math.random() * 60)}m`,
-  active: i % 3 !== 0,
-  level: i % 4 === 0 ? 0 : i % 4 === 1 ? 1 : i % 4 === 2 ? 2 : 3,
-}));
-
-const monthCategories = [
-  { name: "Work", time: "82h 30m", percentage: 65.2, color: "#3b82f6" },
-  { name: "Study", time: "18h 45m", percentage: 14.8, color: "#a855f7" },
-  { name: "Meeting", time: "12h 00m", percentage: 9.5, color: "#f97316" },
-  { name: "Life", time: "8h 15m", percentage: 6.5, color: "#22c55e" },
-  { name: "Health", time: "5h 00m", percentage: 4.0, color: "#06b6d4" },
-];
-
-const topTasks = [
-  { task: "Code review and PR merge", category: "Work", time: "12h 30m" },
-  { task: "Feature development", category: "Work", time: "24h 15m" },
-  { task: "Documentation updates", category: "Work", time: "8h 45m" },
-  { task: "Team sync meetings", category: "Meeting", time: "6h 00m" },
-  { task: "Learning new technology", category: "Study", time: "10h 30m" },
-];
+// Get the top category for donut chart center
+const topCategory = computed(() => {
+  if (!todayCategories.value.length) return null;
+  return todayCategories.value[0];
+});
 
 const circumference = 2 * Math.PI * 40;
 
@@ -501,7 +596,7 @@ const getStrokeDasharray = (percentage: number) => {
   return `${length} ${circumference - length}`;
 };
 
-const getStrokeDashoffset = (index: number, data: typeof todayCategories) => {
+const getStrokeDashoffset = (index: number, data: CategoryStat[]) => {
   let offset = 0;
   for (let i = 0; i < index; i++) {
     const cat = data[i];
@@ -512,7 +607,8 @@ const getStrokeDashoffset = (index: number, data: typeof todayCategories) => {
   return -offset;
 };
 
-const getTagColor = (category: string) => {
+const getTagColor = (category: string | null) => {
+  if (!category) return { color: "#f3f4f6", textColor: "#374151" };
   const colors: Record<string, { color: string; textColor: string }> = {
     Work: { color: "#dbeafe", textColor: "#1d4ed8" },
     Meeting: { color: "#fef3c7", textColor: "#b45309" },
@@ -570,9 +666,9 @@ const getTagColor = (category: string) => {
   transition: all 0.15s;
 }
 
-.export-btn:hover {
-  background: var(--bg-page);
-  color: var(--text-primary);
+.export-btn[disabled] {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .time-filter {
@@ -1011,5 +1107,11 @@ const getTagColor = (category: string) => {
   color: var(--text-muted);
   border-top: 1px solid var(--border);
   background: var(--bg-page);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
 }
 </style>
