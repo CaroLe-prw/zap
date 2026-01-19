@@ -2,8 +2,14 @@ pub mod commands;
 mod error;
 mod sqlite;
 mod tray;
-use tauri::WindowEvent;
+use std::sync::Mutex;
+
+use tauri::{Manager, RunEvent};
 use tauri_plugin_log::{Target, TargetKind};
+
+pub struct AppState {
+    pub is_quitting: Mutex<bool>,
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,6 +24,9 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            app.manage(AppState {
+                is_quitting: Mutex::new(false),
+            });
             tray::init_tray(app)?;
             sqlite::set_db(app).map_err(|e| e.to_string())?;
             Ok(())
@@ -34,14 +43,15 @@ pub fn run() {
             commands::get_week_stats,
             commands::get_month_stats,
         ])
-        .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event
-                && window.label() == "main"
-            {
-                api.prevent_close();
-                let _ = window.hide();
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            if let RunEvent::ExitRequested { api, .. } = event {
+                let state = app_handle.state::<AppState>();
+                let is_quitting = *state.is_quitting.lock().unwrap();
+                if !is_quitting {
+                    api.prevent_exit();
+                }
             }
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        });
 }
