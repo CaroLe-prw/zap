@@ -331,7 +331,6 @@ const handleUndo = async () => {
 const handleAddTask = async (data: {
   form: any;
   categoryId: number | null;
-  addToFocus: boolean;
   estimateSeconds: number | null;
 }) => {
   await addTask(data);
@@ -341,7 +340,6 @@ const handleAddTask = async (data: {
 const handleAddTaskStart = async (data: {
   form: any;
   categoryId: number | null;
-  addToFocus: boolean;
   estimateSeconds: number | null;
 }) => {
   await addTaskAndStart(data);

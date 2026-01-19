@@ -147,6 +147,8 @@ pub async fn add_task_impl(pool: &SqlitePool, req: CreateTaskRequest) -> Result<
             .bind(format!("{} #1", req.title))
             .execute(tx.as_mut())
             .await?;
+
+        update_task_status(&mut tx, task_id as u32, TaskStatus::Running).await?;
     }
 
     tx.commit().await?;

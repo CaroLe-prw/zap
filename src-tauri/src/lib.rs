@@ -42,6 +42,9 @@ pub fn run() {
             commands::get_today_stats,
             commands::get_week_stats,
             commands::get_month_stats,
+            commands::get_daily_focus,
+            commands::upsert_daily_focus,
+            commands::toggle_daily_focus,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

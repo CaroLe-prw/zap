@@ -23,7 +23,6 @@ interface AddTaskData {
     notes?: string;
   };
   categoryId: number | null;
-  addToFocus: boolean;
   estimateSeconds: number | null;
 }
 
@@ -53,7 +52,6 @@ export function useTasks() {
           category_id: data.categoryId,
           estimate_seconds: data.estimateSeconds,
           notes: data.form.notes || null,
-          is_today_focus: data.addToFocus,
           start_on_create: false,
         },
       });
@@ -86,7 +84,6 @@ export function useTasks() {
           category_id: data.categoryId,
           estimate_seconds: data.estimateSeconds,
           notes: data.form.notes || null,
-          is_today_focus: data.addToFocus,
           start_on_create: true,
         },
       });

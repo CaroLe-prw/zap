@@ -90,13 +90,6 @@
           </div>
           <NSwitch v-model:value="form.startImmediately" />
         </div>
-        <div class="switch-item">
-          <div class="switch-info">
-            <span class="switch-label">Add to Today Focus</span>
-            <span class="switch-desc">Show in Today Focus</span>
-          </div>
-          <NSwitch v-model:value="form.addToTodayFocus" />
-        </div>
       </div>
     </div>
 
@@ -129,7 +122,6 @@ interface AddTaskForm {
   estimate: string | null;
   notes: string;
   startImmediately: boolean;
-  addToTodayFocus: boolean;
 }
 
 const props = defineProps<{
@@ -144,7 +136,6 @@ const emit = defineEmits<{
     data: {
       form: AddTaskForm;
       categoryId: number | null;
-      addToFocus: boolean;
       estimateSeconds: number | null;
     },
   ): void;
@@ -153,7 +144,6 @@ const emit = defineEmits<{
     data: {
       form: AddTaskForm;
       categoryId: number | null;
-      addToFocus: boolean;
       estimateSeconds: number | null;
     },
   ): void;
@@ -170,7 +160,6 @@ const form = ref<AddTaskForm>({
   estimate: null,
   notes: "",
   startImmediately: false,
-  addToTodayFocus: false,
 });
 
 const selectedCategory = ref<number | null>(null);
@@ -265,7 +254,6 @@ watch(
         estimate: "",
         notes: "",
         startImmediately: false,
-        addToTodayFocus: false,
       };
       selectedCategory.value = null;
       selectedEstimate.value = "";
@@ -313,14 +301,12 @@ const handleSubmit = () => {
     emit("add-start", {
       form: { ...form.value },
       categoryId: selectedCategory.value,
-      addToFocus: form.value.addToTodayFocus,
       estimateSeconds,
     });
   } else {
     emit("add", {
       form: { ...form.value },
       categoryId: selectedCategory.value,
-      addToFocus: form.value.addToTodayFocus,
       estimateSeconds,
     });
   }

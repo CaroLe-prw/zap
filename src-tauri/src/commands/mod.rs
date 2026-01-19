@@ -1,4 +1,5 @@
 pub mod categories;
+pub mod daily_focus;
 pub mod statistics;
 pub mod task;
 pub mod types;
@@ -85,4 +86,28 @@ pub async fn get_month_stats(
     query: StatsDateQuery,
 ) -> Result<MonthStatsResponse, ZapError> {
     get_month_stats_impl(&db.pool, query).await
+}
+
+#[tauri::command]
+pub async fn get_daily_focus(
+    db: tauri::State<'_, Db>,
+    date: String,
+) -> Result<Option<daily_focus::DailyFocus>, ZapError> {
+    daily_focus::get_daily_focus_impl(&db.pool, date).await
+}
+
+#[tauri::command]
+pub async fn upsert_daily_focus(
+    db: tauri::State<'_, Db>,
+    req: daily_focus::UpsertDailyFocusRequest,
+) -> Result<daily_focus::DailyFocus, ZapError> {
+    daily_focus::upsert_daily_focus_impl(&db.pool, req).await
+}
+
+#[tauri::command]
+pub async fn toggle_daily_focus(
+    db: tauri::State<'_, Db>,
+    id: i64,
+) -> Result<daily_focus::DailyFocus, ZapError> {
+    daily_focus::toggle_daily_focus_impl(&db.pool, id).await
 }
